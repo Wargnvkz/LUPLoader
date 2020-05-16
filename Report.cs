@@ -250,7 +250,7 @@ namespace LUPLoader
                     bc.BagWeight = income_mat.BagWeight;
                     bc.BagQuantity = 0;
                     bc.CorrectionValue = 0;
-                    bc.CorrectionText = "Приход не указан в списке материалов MaprDuo";
+                    bc.CorrectionText = "Материала нет в списке MaprDuo";
                     bags_corrections.Add(bc);
                 }
 

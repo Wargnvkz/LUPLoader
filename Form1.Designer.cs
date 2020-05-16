@@ -72,21 +72,21 @@
             // SettingsMenu
             // 
             this.SettingsMenu.Name = "SettingsMenu";
-            this.SettingsMenu.Size = new System.Drawing.Size(73, 20);
+            this.SettingsMenu.Size = new System.Drawing.Size(79, 20);
             this.SettingsMenu.Text = "Настройки";
             this.SettingsMenu.Click += new System.EventHandler(this.SettingsMenu_Click);
             // 
             // StartMenuItem
             // 
             this.StartMenuItem.Name = "StartMenuItem";
-            this.StartMenuItem.Size = new System.Drawing.Size(110, 20);
+            this.StartMenuItem.Size = new System.Drawing.Size(115, 20);
             this.StartMenuItem.Text = "Запустить сервер";
             this.StartMenuItem.Click += new System.EventHandler(this.StartMenuItem_Click);
             // 
             // OpenLogToolStripMenuItem
             // 
             this.OpenLogToolStripMenuItem.Name = "OpenLogToolStripMenuItem";
-            this.OpenLogToolStripMenuItem.Size = new System.Drawing.Size(87, 20);
+            this.OpenLogToolStripMenuItem.Size = new System.Drawing.Size(91, 20);
             this.OpenLogToolStripMenuItem.Text = "Показать лог";
             this.OpenLogToolStripMenuItem.Click += new System.EventHandler(this.OpenLogToolStripMenuItem_Click);
             // 
@@ -144,14 +144,15 @@
             // 
             // listView1
             // 
-            this.listView1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-                        | System.Windows.Forms.AnchorStyles.Left)
-                        | System.Windows.Forms.AnchorStyles.Right)));
+            this.listView1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.listView1.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
             this.columnHeader1,
             this.columnHeader2,
             this.columnHeader3,
             this.columnHeader4});
+            this.listView1.HideSelection = false;
             this.listView1.Location = new System.Drawing.Point(0, 49);
             this.listView1.Name = "listView1";
             this.listView1.Size = new System.Drawing.Size(1024, 299);
@@ -236,7 +237,7 @@
             this.Controls.Add(this.panel1);
             this.Controls.Add(this.menuStrip1);
             this.Name = "Form1";
-            this.Text = "Программа связи УПМ и SAP v2.0a";
+            this.Text = "Программа связи УПМ и SAP v1.5";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.Form1_FormClosing);
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.Form1_FormClosed);
             this.menuStrip1.ResumeLayout(false);
