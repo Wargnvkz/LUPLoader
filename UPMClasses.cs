@@ -1028,7 +1028,7 @@ namespace LUPLoader
             }
         }
 
-        public static List<HU> HU_At_UPM(string MaterialNumber, DateTime fromdate)
+        public static List<HU> HU_At_UPM(string MaterialNumber, DateTime fromdate,long LastTransferOrder)
         {
             if (String.IsNullOrWhiteSpace(MaterialNumber)) throw new UPMException("Не указан материал", UPMExceptionMessage.MaterialNotSpecified);
             Int64 imn = 0;
@@ -1048,10 +1048,14 @@ namespace LUPLoader
 
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
+
+            var index=Got_HU_to_UPM.FindIndex(hu => hu.LastTransferOrder == LastTransferOrder);
+            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index).ToList();
+
             return Got_HU_to_UPM;
         }
 
-        public static List<HU> HU_At_UPM(string MaterialNumber, LastBag lastbag)
+        public static List<HU> HU_At_UPM(string MaterialNumber, LastBag lastbag, long LastTransferOrder)
         {
             if (String.IsNullOrWhiteSpace(MaterialNumber)) throw new UPMException("Не указан материал", UPMExceptionMessage.MaterialNotSpecified);
             Int64 imn = 0;
@@ -1074,6 +1078,10 @@ namespace LUPLoader
 
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
+
+            var index = Got_HU_to_UPM.FindIndex(hu => hu.LastTransferOrder == LastTransferOrder);
+            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index).ToList();
+
             return Got_HU_to_UPM;
         }
 
@@ -1236,7 +1244,7 @@ namespace LUPLoader
             }
         }
 
-        public static DateTime GetLastBag(string Material)
+        public static LUPLastBag GetLastBag(string Material)
         {
             var selectedLanguage = "ru-RU";
             Thread.CurrentThread.CurrentCulture =
@@ -1245,7 +1253,8 @@ namespace LUPLoader
                 CultureInfo(selectedLanguage);
 
             DateTime LastBag=DateTime.MinValue;
-
+            LUPLastBag result=new LUPLastBag();
+            result.Material=Material;
             try
             {
                 var cs = ConfigurationManager.ConnectionStrings["UPMConnectionString"].ConnectionString;
@@ -1261,8 +1270,10 @@ namespace LUPLoader
                     {
                         if (dr.Read())
                         {
-                            if (!dr.IsDBNull(0))
-                                LastBag = dr.GetDateTime(0);
+                            
+                            result.LastBag=!dr.IsDBNull(0)?dr.GetDateTime(0):new DateTime(2000,1,1,0,0,0);
+                            result.LastTransferOrder=!dr.IsDBNull(1)?dr.GetInt64(1):9999999999L;
+
                            /* SQLInventory smi = new SQLInventory();
                             smi.InvID = dr.GetInt32(0);
                             smi.Date = dr.GetDateTime(1);
@@ -1271,7 +1282,7 @@ namespace LUPLoader
                         }
                     }
                 }
-                return LastBag;
+                return result;
             }
             catch (Exception ex)
             {
@@ -1279,7 +1290,7 @@ namespace LUPLoader
                 //return DateTime.MinValue;
             }
         }
-        public static void SetLastBag(string Material,DateTime LastBag)
+        public static void SetLastBag(string Material,DateTime LastBag, long LastTransferOrder)
         {
             var selectedLanguage = "ru-RU";
             Thread.CurrentThread.CurrentCulture =
@@ -1297,6 +1308,7 @@ namespace LUPLoader
                     cmd.CommandType = CommandType.StoredProcedure;
                     cmd.Parameters.AddWithValue("@MaterialNumber", Material);
                     cmd.Parameters.AddWithValue("@LastBagTime", LastBag);
+                    cmd.Parameters.AddWithValue("@LastTransferOrder", LastTransferOrder);
                     cmd.ExecuteNonQuery();
                     Log.Add("Время следующего мешка для материала " + Material + " установлено в " + LastBag.ToString("dd-MM-yyyy hh\\:mm\\:ss"), true,0);
                 }
@@ -1631,6 +1643,7 @@ namespace LUPLoader
                     LUPLastBag llb = new LUPLastBag();
                     llb.Material = dr.IsDBNull(0) ? "" : dr.GetString(0);
                     llb.LastBag = dr.IsDBNull(1) ? DateTime.MinValue : dr.GetDateTime(1); ;
+                    llb.LastTransferOrder= dr.IsDBNull(2) ? 9999999999L : dr.GetInt64(2);
                     lsd.Add(llb);
 
                 }
@@ -1655,6 +1668,7 @@ namespace LUPLoader
 
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
+
             return Got_HU_to_UPM;
         }
         public static List<HU> HU_At_UPM(DateTime ShiftDate,bool isNight)
@@ -1711,6 +1725,12 @@ namespace LUPLoader
                 if (lb != null)
                 {
                     var hl = h.ToList();
+                    hl = hl.OrderBy(he => he.DT).ToList();
+                    var lastbag = timelst.Find(te => te.Material == mtnr);
+
+                    var index = hl.FindIndex(hu => hu.TransferOrderNumber == lastbag.LastTransferOrder);
+                    hl = hl.Skip(index).ToList();
+
                     var hll = hl.FindAll(hh => hh.DT > lb.LastBag);
                     if (hll.Count > 0)
                     {
@@ -1753,6 +1773,7 @@ namespace LUPLoader
         {
             public string Material;
             public DateTime LastBag;
+            public long LastTransferOrder;
         }
 
         public static void ChangeShift(DateTime ShiftDate,bool isNight, int[] LUPWeight)
@@ -1765,7 +1786,6 @@ namespace LUPLoader
             Report.AddMaterialAtShiftStart(ShiftDate, isNight, bagsAtUPM);
         }
 
-        
     }
 
     public static class Log
