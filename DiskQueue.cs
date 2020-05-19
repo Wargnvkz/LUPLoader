@@ -144,10 +144,22 @@ namespace LUPLoader
             var fn = GetExePath() + VariableName + ".json";
             if (File.Exists(fn))
             {
-
                 using (FileStream fs = new FileStream(fn, FileMode.Open))
                 {
-                    data = (List<T>)jsonFormatter.ReadObject(fs);
+                    if (fs.Length > 0)
+                    {
+                        try
+                        {
+                            data = (List<T>)jsonFormatter.ReadObject(fs);
+                        }catch(Exception ex)
+                        {
+                            throw new Exception("Ошибка разбора файла "+fn);
+                        }
+                    }
+                    else
+                    {
+                        data = new List<T>();
+                    }
 
                 }
             }

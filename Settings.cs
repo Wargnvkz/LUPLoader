@@ -298,9 +298,12 @@ namespace LUPLoader
 
                 Log.Add("Пользователь выполняет сдвиг мешков для материала "+material+" на "+nbags);
                 var LastBag = UPMAction.GetLastBag(material);
-                DateTime newlastbag;
-                UPMAction.MoveBags(material, nbags, LastBag,out newlastbag);
-                UPMAction.SetLastBag(material, newlastbag);
+                //DateTime newlastbag;
+                //UPMAction.MoveBags(material, nbags, LastBag,out newlastbag);
+                UPMAction.LUPLastBag newlastbag;
+
+                UPMAction.MoveBags(LastBag, nbags, out newlastbag);
+                UPMAction.SetLastBag(material, newlastbag.LastBag, newlastbag.LastTransferOrder);
 
             }
             else

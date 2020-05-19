@@ -889,9 +889,10 @@ namespace LUPLoader
     {
         public static int[] LUPWeight = new int[2];
 
-        public static bool LoadBags(int LUP, string Material, int BagQuant, DateTime LastBag, out DateTime newLastBag)
+        public static bool LoadBags(int LUP, int BagQuant, LUPLastBag LastBag, out LUPLastBag newLastBag)
         {
             ///проверить наличие нужного количества материала на складе, даже если мешки уже привезли
+            var Material = LastBag.Material;
 
             var Storage = GetStorageMaterial();
             //int LUP = 1;
@@ -899,7 +900,7 @@ namespace LUPLoader
             //Material = "1000000012"
             var lastbag = LastBag;// new DateTime(2018, 12, 06);
             newLastBag = LastBag;
-            var a = HU_At_UPM(Material, lastbag);
+            var a = HU_At_UPM(Material, lastbag.LastBag, lastbag.LastTransferOrder );
             if (a.Count >= BagQuant)
             {
                 Dictionary<string, double> BatchQauntity = new Dictionary<string, double>();
@@ -922,8 +923,10 @@ namespace LUPLoader
                     if (batchMaterial == null) throw new UPMException("Партии "+bq.Key+" материала "+Material+" нет на складе УПМ",UPMExceptionMessage.NoGranulate);
                     if (batchMaterial.Available < bq.Value) throw new UPMException("Партии " + bq.Key + " материала " + Material + " недостаточно на складе УПМ",UPMExceptionMessage.NoEnoughGranulate);
                 }
-                
-                lastbag = for_load.Last().DT;
+
+                var lastForLoad = for_load.Last();
+                lastbag.LastBag = lastForLoad.DT;
+                lastbag.LastTransferOrder = lastForLoad.TransferOrderNumber;
 
                 int loadedBags = 0;
                 foreach (var l in for_load)
@@ -942,10 +945,10 @@ namespace LUPLoader
                     var res=SAPConnect.AppData.Instance.ZMOVE(l.SU, "LUP" + LUP.ToString());
                     if (res[0].Error)
                     {
-                        throw new LoadBagException("SAP: " + res[0].Message, loadedBags, newLastBag);
+                        throw new LoadBagException("SAP: " + res[0].Message, loadedBags, newLastBag.LastBag, newLastBag.LastTransferOrder);
                     }
                     Report.AddBagLoaded(DateTime.Now, Material, LUP, BagWeight, hu);
-                    newLastBag = l.DT;
+                    newLastBag = new LUPLastBag() { Material = lastbag.Material, LastBag = l.DT, LastTransferOrder = l.TransferOrderNumber };
                     loadedBags++;
                     Log.Add("Мешок " + l.SU + " был загружен в LUP" + LUP.ToString(), true, 0);
                 }
@@ -957,7 +960,7 @@ namespace LUPLoader
             }
         }
 
-        public static bool LoadBags(int LUP, string Material, int BagQuant, LastBag curLastBag, out LastBag newLastBag)
+        /*public static bool LoadBags(int LUP, string Material, int BagQuant, LastBag curLastBag, out LastBag newLastBag)
         {
             ///проверить наличие нужного количества материала на складе, даже если мешки уже привезли
 
@@ -1026,7 +1029,7 @@ namespace LUPLoader
             {
                 throw new UPMException("На УПМ недостаточно гранулята " + Material.ToString(), UPMExceptionMessage.NoBags);
             }
-        }
+        }*/
 
         public static List<HU> HU_At_UPM(string MaterialNumber, DateTime fromdate,long LastTransferOrder)
         {
@@ -1049,7 +1052,7 @@ namespace LUPLoader
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
 
-            var index=Got_HU_to_UPM.FindIndex(hu => hu.LastTransferOrder == LastTransferOrder);
+            var index=Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
             Got_HU_to_UPM = Got_HU_to_UPM.Skip(index).ToList();
 
             return Got_HU_to_UPM;
@@ -1079,7 +1082,7 @@ namespace LUPLoader
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
 
-            var index = Got_HU_to_UPM.FindIndex(hu => hu.LastTransferOrder == LastTransferOrder);
+            var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
             Got_HU_to_UPM = Got_HU_to_UPM.Skip(index).ToList();
 
             return Got_HU_to_UPM;
@@ -1096,14 +1099,15 @@ namespace LUPLoader
             return lst;
         }
 
-        public static bool MoveBags(string Material, int BagQuant, DateTime LastBag, out DateTime newLastBag)
+        public static bool MoveBags(LUPLastBag LastBag, int BagQuant, out LUPLastBag newLastBag)
+        //public static bool MoveBags(string Material, int BagQuant, DateTime LastBag, out DateTime newLastBag)
         {
-            var lastbag = LastBag;// new DateTime(2018, 12, 06);
+            var lastbag = LastBag.LastBag;// new DateTime(2018, 12, 06);
             var lastbagq = lastbag;
             newLastBag = LastBag;
             if (BagQuant <= 0)
                 lastbagq=lastbagq.AddDays(-5);
-            var a = HU_At_UPM(Material, lastbagq);
+            var a = HU_At_UPM(LastBag.Material, lastbagq,LastBag.LastTransferOrder);
             var index = 0;
             for (index = 0; index < a.Count; index++)
             {
@@ -1117,7 +1121,10 @@ namespace LUPLoader
             }
             else
             {
-                newLastBag = a[newind].DT;
+                newLastBag = new LUPLastBag();
+                newLastBag.Material = LastBag.Material;
+                newLastBag.LastBag=a[newind].DT;
+                newLastBag.LastTransferOrder = a[newind].TransferOrderNumber;
                 return true;
             }
             
@@ -1157,7 +1164,7 @@ namespace LUPLoader
         {
 
             [SAPConnect.SAPGetTable("TANUM")]
-            public int TransferOrderNumber;
+            public long TransferOrderNumber;
             [SAPConnect.SAPGetTable("VLENR")]
             public string SU;
             [SAPConnect.SAPGetTable("QDATU", SAPConnect.SAPType.DATE)]
@@ -1467,15 +1474,14 @@ namespace LUPLoader
                         {
                             Log.Add("Не удалось передать ответ клиенту");
                         }
-                        DateTime LastBag;
-                        LastBag = UPMAction.GetLastBag(cmd.Material);
+                        var LastBag = UPMAction.GetLastBag(cmd.Material);
                         try
                         {
                             if (cmd.BagQuant > 0)
                             {
-                                if (UPMAction.LoadBags(cmd.LUP, cmd.Material, cmd.BagQuant, LastBag, out LastBag))
+                                if (UPMAction.LoadBags(cmd.LUP, cmd.BagQuant, LastBag, out LastBag))
                                 {
-                                    UPMAction.SetLastBag(cmd.Material, LastBag);
+                                    UPMAction.SetLastBag(cmd.Material, LastBag.LastBag,LastBag.LastTransferOrder);
                                 }
                                 else
                                 {
@@ -1495,7 +1501,7 @@ namespace LUPLoader
                                 cmd.BagQuant -= lbex.Loaded;
                                 addMsg = "Загружено мешков: " + lbex.Loaded.ToString();
                                 try{
-                                UPMAction.SetLastBag(cmd.Material, lbex.LastBag);
+                                UPMAction.SetLastBag(cmd.Material, lbex.LastBag,lbex.LastTransferOrder);
                                 }catch(Exception ex1){
                                     addMsg = "\nSQLError: " + ex1.Message;
                                 }
@@ -1596,7 +1602,7 @@ namespace LUPLoader
             //now = new DateTime(2017, 08, 12, 9, 40, 57);
             Log.Add("Установка времени последних загруженных мешков на " + now, true,0);
             var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
-            gran.ForEach(g => UPMAction.SetLastBag(g.Trim().TrimStart('0'), now));
+            gran.ForEach(g => UPMAction.SetLastBag(g.Trim().TrimStart('0'), now, 9999999999));
         }
         public static void ResetMaterialsLastBag(string Material, DateTime? NewLast = null)
         {
@@ -1611,7 +1617,7 @@ namespace LUPLoader
             {
                 mat = mat.Trim().TrimStart('0');
                 Log.Add("Установка времени последних загруженных мешков для материала " + mat + " на " + now, true,0);
-                UPMAction.SetLastBag(mat, now);
+                UPMAction.SetLastBag(mat, now, 9999999999);
             }
             else
             {
@@ -1973,11 +1979,13 @@ namespace LUPLoader
     {
         public int Loaded;
         public DateTime LastBag;
-        public LoadBagException(string message,int loaded,DateTime lastBag)
+        public long LastTransferOrder;
+        public LoadBagException(string message,int loaded,DateTime lastBag, long lastTransferOrder)
             : base(message)
         {
             Loaded = loaded;
             LastBag = lastBag;
+            LastTransferOrder = lastTransferOrder;
         }
     }
 
@@ -2034,7 +2042,7 @@ namespace LUPLoader
 
     public class LastBag
     {
-        public int TransferOrder;
+        public long TransferOrder;
         public DateTime LastBagDateTime;
     }
 }
