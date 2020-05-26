@@ -898,9 +898,9 @@ namespace LUPLoader
             //int LUP = 1;
             //var BagQuant = 10;
             //Material = "1000000012"
-            var lastbag = LastBag;// new DateTime(2018, 12, 06);
-            newLastBag = LastBag;
-            var a = HU_At_UPM(Material, lastbag.LastBag, lastbag.LastTransferOrder );
+            //var lastbag = LastBag;// new DateTime(2018, 12, 06);
+            newLastBag = new LUPLastBag(LastBag);
+            var a = HU_At_UPM(Material, LastBag.LastBag, LastBag.LastTransferOrder );
             if (a.Count >= BagQuant)
             {
                 Dictionary<string, double> BatchQauntity = new Dictionary<string, double>();
@@ -924,9 +924,9 @@ namespace LUPLoader
                     if (batchMaterial.Available < bq.Value) throw new UPMException("Партии " + bq.Key + " материала " + Material + " недостаточно на складе УПМ",UPMExceptionMessage.NoEnoughGranulate);
                 }
 
-                var lastForLoad = for_load.Last();
-                lastbag.LastBag = lastForLoad.DT;
-                lastbag.LastTransferOrder = lastForLoad.TransferOrderNumber;
+                //var lastForLoad = for_load.Last();
+                //lastbag.LastBag = lastForLoad.DT;
+                //lastbag.LastTransferOrder = lastForLoad.TransferOrderNumber;
 
                 int loadedBags = 0;
                 foreach (var l in for_load)
@@ -948,7 +948,7 @@ namespace LUPLoader
                         throw new LoadBagException("SAP: " + res[0].Message, loadedBags, newLastBag.LastBag, newLastBag.LastTransferOrder);
                     }
                     Report.AddBagLoaded(DateTime.Now, Material, LUP, BagWeight, hu);
-                    newLastBag = new LUPLastBag() { Material = lastbag.Material, LastBag = l.DT, LastTransferOrder = l.TransferOrderNumber };
+                    newLastBag = new LUPLastBag() { Material = Material, LastBag = l.DT, LastTransferOrder = l.TransferOrderNumber };
                     loadedBags++;
                     Log.Add("Мешок " + l.SU + " был загружен в LUP" + LUP.ToString(), true, 0);
                 }
@@ -1031,7 +1031,33 @@ namespace LUPLoader
             }
         }*/
 
-        public static List<HU> HU_At_UPM(string MaterialNumber, DateTime fromdate,long LastTransferOrder)
+        public static List<HU> HU_At_UPM(string MaterialNumber, DateTime fromdate, long LastTransferOrder)
+        {
+            if (String.IsNullOrWhiteSpace(MaterialNumber)) throw new UPMException("Не указан материал", UPMExceptionMessage.MaterialNotSpecified);
+            Int64 imn = 0;
+            if (!Int64.TryParse(MaterialNumber, out imn)) throw new UPMException("Номер материала должен быть числом", UPMExceptionMessage.NotAGranulate);
+            var mn = MaterialNumber.Trim().TrimStart('0').PadLeft(18, '0');
+            var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
+            var fg = gran.Find(g => g == mn);
+            if (fg == null) throw new UPMException("Загружаемый материал не принадлежит группе материалов \"Гранулят\"", UPMExceptionMessage.NotAGranulate);
+
+            var to_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(NLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
+            to_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
+            to_upm = to_upm.FindAll(h => h.DT >= fromdate);
+
+            var from_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(VLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
+            from_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
+            from_upm = from_upm.FindAll(h => h.DT > fromdate);
+
+            var fu_hu_num = from_upm.Select(n => n.SU).ToList();
+            var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
+
+            var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
+            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index+1).ToList();
+
+            return Got_HU_to_UPM;
+        }
+        public static List<HU> HU_At_UPM_MoveBags(string MaterialNumber, DateTime fromdate)
         {
             if (String.IsNullOrWhiteSpace(MaterialNumber)) throw new UPMException("Не указан материал", UPMExceptionMessage.MaterialNotSpecified);
             Int64 imn = 0;
@@ -1052,13 +1078,10 @@ namespace LUPLoader
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
 
-            var index=Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
-            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index).ToList();
-
             return Got_HU_to_UPM;
         }
 
-        public static List<HU> HU_At_UPM(string MaterialNumber, LastBag lastbag, long LastTransferOrder)
+        public static List<HU> HU_At_UPM(string MaterialNumber, LastBag lastbag)
         {
             if (String.IsNullOrWhiteSpace(MaterialNumber)) throw new UPMException("Не указан материал", UPMExceptionMessage.MaterialNotSpecified);
             Int64 imn = 0;
@@ -1072,18 +1095,18 @@ namespace LUPLoader
             var to_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(NLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             to_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
             to_upm = to_upm.OrderBy(b => b.DT).ThenBy(b1 => b1.TransferOrderNumber).ToList();
-            to_upm = to_upm.FindAll(h => (h.DT > fromdate) || (h.DT == fromdate && h.TransferOrderNumber > lastbag.TransferOrder));
+            to_upm = to_upm.FindAll(h => (h.DT >= fromdate) );
 
             var from_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(VLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             from_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
             from_upm = from_upm.OrderBy(b => b.DT).ThenBy(b1 => b1.TransferOrderNumber).ToList();
-            from_upm = from_upm.FindAll(h => (h.DT > fromdate) || (h.DT== fromdate && h.TransferOrderNumber>lastbag.TransferOrder));
+            from_upm = from_upm.FindAll(h => (h.DT > fromdate));
 
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
 
-            var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
-            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index).ToList();
+            var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == lastbag.TransferOrder);
+            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index+1).ToList();
 
             return Got_HU_to_UPM;
         }
@@ -1107,11 +1130,11 @@ namespace LUPLoader
             newLastBag = LastBag;
             if (BagQuant <= 0)
                 lastbagq=lastbagq.AddDays(-5);
-            var a = HU_At_UPM(LastBag.Material, lastbagq,LastBag.LastTransferOrder);
+            var a = HU_At_UPM_MoveBags(LastBag.Material, lastbagq);
             var index = 0;
             for (index = 0; index < a.Count; index++)
             {
-                if (a[index].DT >= lastbag) break;
+                if (a[index].DT >= lastbag && a[index].TransferOrderNumber == LastBag.LastTransferOrder) break;
             }
             var newind = index + BagQuant + (BagQuant>0?-1:0);
             if (newind < 0 || newind > a.Count - 1)
@@ -1780,6 +1803,13 @@ namespace LUPLoader
             public string Material;
             public DateTime LastBag;
             public long LastTransferOrder;
+            public LUPLastBag() { }
+            public LUPLastBag(LUPLastBag ToClone) 
+            {
+                Material = ToClone.Material;
+                LastBag = ToClone.LastBag;
+                LastTransferOrder = ToClone.LastTransferOrder;
+            }
         }
 
         public static void ChangeShift(DateTime ShiftDate,bool isNight, int[] LUPWeight)

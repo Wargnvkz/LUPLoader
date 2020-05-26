@@ -147,7 +147,7 @@ namespace LUPLoader
                     {
                         connection.Open();
 
-                        Log.Add("Запись материалов на начало смены " + shift.ToShortTimeString() + " " + (IsNight ? "Н" : "Д"), true, 0);
+                        Log.Add("Запись материалов на начало смены " + shift.ToShortDateString() + " " + (IsNight ? "Н" : "Д"), true, 0);
                         trans = connection.BeginTransaction();
 
                         foreach (var m in ml)
@@ -213,7 +213,7 @@ namespace LUPLoader
                 Thread.CurrentThread.CurrentUICulture = new
                     CultureInfo(selectedLanguage);
 
-                var cs = ConfigurationManager.ConnectionStrings["UPMConnection"].ConnectionString;
+                var cs = ConfigurationManager.ConnectionStrings["UPMConnectionString"].ConnectionString;
                 SqlTransaction trans = null;
 
                 var hugroup=HU_list.GroupBy(h => new { h.MaterialNumber, h.Quantity });
@@ -271,7 +271,7 @@ namespace LUPLoader
                     {
                         connection.Open();
 
-                        Log.Add("Запись материалов на начало смены " + shift.ToShortTimeString() + " " + (IsNight ? "Н" : "Д"), true, 0);
+                        Log.Add("Запись материалов на начало смены " + shift.ToShortDateString() + " " + (IsNight ? "Н" : "Д"), true, 0);
                         trans = connection.BeginTransaction();
 
                         foreach (var corr in bags_corrections)

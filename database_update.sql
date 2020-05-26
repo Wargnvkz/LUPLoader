@@ -2,7 +2,7 @@
 GO
 
 --------------------------------- Приход по мешкам ----------------------------
-/*
+
 /****** Object:  Table [dbo].[CorrectionsAtShiftEnd]    Script Date: 14.05.2020 6:55:02 ******/
 SET ANSI_NULLS ON
 GO
@@ -29,7 +29,7 @@ PRIMARY KEY CLUSTERED
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
 ) ON [PRIMARY]
 GO
-*/
+
 ------------------------------------------------------ Транспортые заказы ----------------------------
 
 CREATE TABLE [dbo].[LUPLastBag](
