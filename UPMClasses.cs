@@ -1743,8 +1743,24 @@ namespace LUPLoader
 
             var mintime = mattimes.Select(t => t.LastBag).Min();
             var hus = HU_At_UPM(mintime);
+
+            var new_hus = new List<HU>();
+            var HU_matgr = hus.OrderBy(HU=>HU.DT).GroupBy(h => h.MaterialNumber);
+            foreach(var hug in HU_matgr)
+            {
+                var material = hug.Key;
+                var mtnr = material.Trim().TrimStart('0');
+                var lastbag = timelst.Find(te => te.Material == mtnr);
+                var hl = hug.ToList();
+                hl = hl.FindAll(hh => hh.DT >= lastbag.LastBag);
+                var index = hl.FindIndex(hu => hu.TransferOrderNumber == lastbag.LastTransferOrder);
+                hl = hl.Skip(index + 1).ToList();
+                new_hus.AddRange(hl);
+            }
+
+
             List<MaterialLeft> ml = new List<MaterialLeft>();
-            var hg = hus.GroupBy(h => new { h.MaterialNumber, h.Quantity });
+            var hg = new_hus.GroupBy(h => new { h.MaterialNumber, h.Quantity });
             foreach (var h in hg)
             {
                 var material = h.Key.MaterialNumber;
@@ -1755,15 +1771,15 @@ namespace LUPLoader
                 {
                     var hl = h.ToList();
                     hl = hl.OrderBy(he => he.DT).ToList();
-                    var lastbag = timelst.Find(te => te.Material == mtnr);
+                    //var lastbag = timelst.Find(te => te.Material == mtnr);
 
-                    var index = hl.FindIndex(hu => hu.TransferOrderNumber == lastbag.LastTransferOrder);
-                    hl = hl.Skip(index).ToList();
+                    //var index = hl.FindIndex(hu => hu.TransferOrderNumber == lastbag.LastTransferOrder);
+                    //hl = hl.Skip(index+1).ToList();
 
-                    var hll = hl.FindAll(hh => hh.DT > lb.LastBag);
-                    if (hll.Count > 0)
+                    //var hll = hl.FindAll(hh => hh.DT > lb.LastBag);
+                    if (hl.Count > 0)
                     {
-                        ml.Add(new MaterialLeft() { Material = mtnr, Batch = "", Quant = hll.Sum(hle => hle.Quantity), BagCount=hll.Count,BaseWeight=qnt });
+                        ml.Add(new MaterialLeft() { Material = mtnr, Batch = "", Quant = hl.Sum(hle => hle.Quantity), BagCount=hl.Count,BaseWeight=qnt });
                     }
                 }
             }
