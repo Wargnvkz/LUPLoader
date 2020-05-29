@@ -276,7 +276,10 @@ namespace LUPLoader
 
                         foreach (var corr in bags_corrections)
                         {
-                            SqlCommand cmd = new SqlCommand("insert into CorrectionsAtShiftEnd(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) VALUES(@DateShift,@IsNight,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText)", connection, trans);
+                            //SqlCommand cmd = new SqlCommand("insert into CorrectionsAtShiftEnd(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) VALUES(@DateShift,@IsNight,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText)", connection, trans);
+                            //cmd.CommandType = CommandType.Text;
+                            SqlCommand cmd = new SqlCommand("SetCorrectionsAtShiftEnd", connection, trans);
+                            cmd.CommandType = CommandType.StoredProcedure;
                             cmd.Parameters.Add("@DateShift", shift);
                             cmd.Parameters.Add("@IsNight", IsNight);
                             cmd.Parameters.Add("@Material", corr.Material);

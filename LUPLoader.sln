@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.29806.167
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LUPLoader", "LUPLoader.csproj", "{9E34EC44-079C-4BAA-8F9D-3238ECF0BE11}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GranulateReport", "..\GranulateReport\GranulateReport\GranulateReport.csproj", "{B143B089-1BF5-4BFE-9044-E2677702C683}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -19,6 +21,14 @@ Global
 		{9E34EC44-079C-4BAA-8F9D-3238ECF0BE11}.Release|Any CPU.ActiveCfg = Release|x86
 		{9E34EC44-079C-4BAA-8F9D-3238ECF0BE11}.Release|x86.ActiveCfg = Release|x86
 		{9E34EC44-079C-4BAA-8F9D-3238ECF0BE11}.Release|x86.Build.0 = Release|x86
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Debug|x86.Build.0 = Debug|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Release|x86.ActiveCfg = Release|Any CPU
+		{B143B089-1BF5-4BFE-9044-E2677702C683}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -86,3 +86,119 @@ AS
 		WHERE MaterialNumber=@MaterialNumber
 
 GO
+
+
+------------------------------------------
+
+
+CREATE TABLE [dbo].[MaterialDataAtShiftEnd](
+	[MaterialDataAtShiftEndID] [int] IDENTITY(1,1) NOT NULL,
+	[DateShift] [date] NULL,
+	[IsNight] [bit] NULL,
+	[Material] [nvarchar](20) NULL,
+	[BagWeight] [int] NULL,
+	[BagQuantity_Start] [int] NULL,
+	[Income] [int] NULL,
+	[Loaded] [int] NULL,
+	[BagQuantity_End] [int] NULL,
+	[CorrectionValue] [int] NULL,
+	[CorrectionText] [nvarchar](256) NULL
+)
+GO
+
+CREATE PROCEDURE SetCorrectionsAtShiftEnd(
+	@DateShift [date],
+	@IsNight [bit] ,
+	@Material [nvarchar](20),
+	@BagWeight [int] ,
+	@Income [int] ,
+	@BagQuantity [int] ,
+	@CorrectionValue [int] ,
+	@CorrectionText [nvarchar](256) 
+)
+AS
+insert into CorrectionsAtShiftEnd(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) 
+VALUES(@DateShift,@IsNight,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText);
+
+DECLARE
+	@BagQuantity_AtEnd [int]=@BagQuantity
+
+/*select @BagQuantity_AtEnd=BagQuantity, @Income=Income,@CorrectionValue=CorrectionValue,@CorrectionText=CorrectionText
+from CorrectionsAtShiftEnd
+where 
+[DateShift]=@DateShift and 
+[IsNight]=@IsNight AND 
+[Material]=@Material
+AND [BagWeight]=@BagWeight*/
+
+
+
+DECLARE	@Loaded [int],
+	@BagQuantity_at_start [int]=0,
+
+	@DateShift_prv [date] =case @isnight when 1 then @DateShift else DATEADD(day,-1,@DateShift) end,
+	@IsNight_prv [bit] =case @isnight when 1 then 0 else 1 end
+
+	SELECT @DateShift_prv ,@IsNight_prv 
+SELECT 
+	  @Loaded=  Sum(t2.[BagsCount])
+	  FROM
+	  (
+			SELECT 
+				   Case When ([time]<'08:00:00') THEN Dateadd(day,-1,[date]) ELSE [date] END AS [DateShift]
+				  ,Case When ([time]<'08:00:00' OR [time]>='20:00:00') THEN 1 ELSE 0 END AS [IsNight]
+			      ,[Material]
+			      ,[LUP]
+			      ,[BagsCount]
+			
+			FROM (
+					SELECT [Loaded]
+					      ,[Material]
+					      ,[LUP]
+					      ,[BagsCount]
+						  ,CONVERT (TIME,[Loaded]) as [time]
+						  ,CONVERT (Date,[Loaded]) as [date]
+					  FROM [dbo].[BagsLoadedCommand]
+			  ) as t1
+		) as t2
+  group by 
+       t2.[DateShift]
+	  ,t2.[IsNight]
+      ,t2.[Material]
+      ,t2.[LUP]
+having t2.[Material]=@Material AND t2.[DateShift]=@DateShift and t2.[IsNight]=@IsNight
+	
+
+select @BagQuantity_at_start=BagQuantity 
+from CorrectionsAtShiftEnd
+where 
+[DateShift]=@DateShift_prv and 
+[IsNight]=@IsNight_prv AND 
+[Material]=@Material
+
+INSERT INTO [dbo].[MaterialDataAtShiftEnd](
+	--[MaterialDataAtShiftEndID] [int] IDENTITY(1,1) NOT NULL,
+	[DateShift],
+	[IsNight],
+	[Material] ,
+	[BagWeight] ,
+	[BagQuantity_Start],
+	[Income],
+	[Loaded],
+	[BagQuantity_End],
+	[CorrectionValue],
+	[CorrectionText] 
+) VALUES(
+@DateShift,
+	@IsNight,
+	@Material,
+	@BagWeight,
+	ISNULL(@BagQuantity_at_start,0),
+	@Income,
+	ISNULL(@loaded,0),
+	@BagQuantity_AtEnd,
+	@CorrectionValue,
+	@CorrectionText 
+)
+
+GO

@@ -341,7 +341,7 @@ namespace LUPLoader
         {
             if (TCPClient == null) return;
             Random rnd = new Random();
-            switch (2)//rnd.Next(3))
+            switch (4)//rnd.Next(3))
             {
                 case 0:
                     {
