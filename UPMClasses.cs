@@ -767,7 +767,7 @@ namespace LUPLoader
                             if (data.Count >= StartI + MsgLength)
                             {
                                 byte lup = data[StartI + 3];
-                                byte bagquant = data[StartI + 14];
+                                sbyte bagquant = (sbyte)data[StartI + 14];
                                 var material = data.GetRange(StartI + 4, 10).ToArray();
                                 var materialNumber = Encoding.ASCII.GetString(material);
                                 HasResult = true;

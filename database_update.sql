@@ -88,11 +88,19 @@ AS
 GO
 
 
-------------------------------------------
+------------------------------------------ Отчет по грануляту --------------------------
+
+use upm
+go
+
+drop table CorrectionsAtShiftEnd
+go
+drop table MaterialDataAtShiftEnd
+go
 
 
-CREATE TABLE [dbo].[MaterialDataAtShiftEnd](
-	[MaterialDataAtShiftEndID] [int] IDENTITY(1,1) NOT NULL,
+CREATE TABLE [dbo].[MaprDuoShiftStatistics](
+	[MaprDuoShiftStatisticsID] [int] IDENTITY(1,1) NOT NULL,
 	[DateShift] [date] NULL,
 	[IsNight] [bit] NULL,
 	[Material] [nvarchar](20) NULL,
@@ -106,8 +114,28 @@ CREATE TABLE [dbo].[MaterialDataAtShiftEnd](
 )
 GO
 
-CREATE PROCEDURE SetCorrectionsAtShiftEnd(
-	@DateShift [date],
+CREATE TABLE [dbo].[MaprDuoCorrectionsOfShift](
+	[CorrectionID] [int] IDENTITY(0,1) NOT NULL,
+	[DateShift] [date] NULL,
+	[IsNight] [bit] NULL,
+	[Material] [nvarchar](20) NULL,
+	[BagWeight] [int] NULL,
+	[Income] [int] NULL,
+	[BagQuantity] [int] NULL,
+	[CorrectionValue] [int] NULL,
+	[CorrectionText] [nvarchar](256) NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[CorrectionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+drop PROCEDURE SetCorrectionsAtShiftEnd
+go 
+
+create PROCEDURE SetCorrectionsAtShiftEnd(
+	@DateShift [date], -- передается дата будущей смены
 	@IsNight [bit] ,
 	@Material [nvarchar](20),
 	@BagWeight [int] ,
@@ -117,29 +145,25 @@ CREATE PROCEDURE SetCorrectionsAtShiftEnd(
 	@CorrectionText [nvarchar](256) 
 )
 AS
-insert into CorrectionsAtShiftEnd(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) 
-VALUES(@DateShift,@IsNight,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText);
+
+DECLARE
+ @DateShift_tmp [date] = case @isnight when 1 then @DateShift else DATEADD(day,-1,@DateShift) end,
+ @IsNight_tmp [bit] =case @isnight when 1 then 0 else 1 end
+
+DECLARE
+ @DateShift_prv [date] = DATEADD(day,-1,@DateShift),
+ @IsNight_prv [bit] =@IsNight
+
+insert into MaprDuoCorrectionsOfShift(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) 
+VALUES(@DateShift_tmp,@IsNight_tmp,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText);
 
 DECLARE
 	@BagQuantity_AtEnd [int]=@BagQuantity
 
-/*select @BagQuantity_AtEnd=BagQuantity, @Income=Income,@CorrectionValue=CorrectionValue,@CorrectionText=CorrectionText
-from CorrectionsAtShiftEnd
-where 
-[DateShift]=@DateShift and 
-[IsNight]=@IsNight AND 
-[Material]=@Material
-AND [BagWeight]=@BagWeight*/
-
-
 
 DECLARE	@Loaded [int],
-	@BagQuantity_at_start [int]=0,
+	@BagQuantity_at_start [int]=0
 
-	@DateShift_prv [date] =case @isnight when 1 then @DateShift else DATEADD(day,-1,@DateShift) end,
-	@IsNight_prv [bit] =case @isnight when 1 then 0 else 1 end
-
-	SELECT @DateShift_prv ,@IsNight_prv 
 SELECT 
 	  @Loaded=  Sum(t2.[BagsCount])
 	  FROM
@@ -166,18 +190,18 @@ SELECT
 	  ,t2.[IsNight]
       ,t2.[Material]
       ,t2.[LUP]
-having t2.[Material]=@Material AND t2.[DateShift]=@DateShift and t2.[IsNight]=@IsNight
+having t2.[Material]=@Material AND t2.[DateShift]=@DateShift_tmp and t2.[IsNight]=@IsNight_tmp
 	
 
 select @BagQuantity_at_start=BagQuantity 
-from CorrectionsAtShiftEnd
+from MaprDuoCorrectionsOfShift
 where 
 [DateShift]=@DateShift_prv and 
 [IsNight]=@IsNight_prv AND 
-[Material]=@Material
+[Material]=@Material AND
+[BagWeight]=@BagWeight
 
-INSERT INTO [dbo].[MaterialDataAtShiftEnd](
-	--[MaterialDataAtShiftEndID] [int] IDENTITY(1,1) NOT NULL,
+INSERT INTO [dbo].[MaprDuoShiftStatistics](
 	[DateShift],
 	[IsNight],
 	[Material] ,
@@ -189,8 +213,8 @@ INSERT INTO [dbo].[MaterialDataAtShiftEnd](
 	[CorrectionValue],
 	[CorrectionText] 
 ) VALUES(
-@DateShift,
-	@IsNight,
+    @DateShift_tmp,
+	@IsNight_tmp,
 	@Material,
 	@BagWeight,
 	ISNULL(@BagQuantity_at_start,0),

@@ -298,10 +298,11 @@ namespace LUPLoader
                 }
                 catch (Exception ex) //error occurred
                 {
+                    Log.Add(ex);
+                    Log.Add("Отмена транзакции", true, 0);
                     if (trans != null)
                         trans.Rollback();
                     Log.Add("Транзакция отменена", true, 0);
-                    Log.Add(ex);
                     //Handel error
                 }
 
