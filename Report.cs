@@ -203,7 +203,7 @@ namespace LUPLoader
             }
         }
 
-        public static void MaprDuoCorrections(DateTime shift, bool IsNight, List<Correction> Corrections, List<UPMAction.HU> HU_list)
+        public static void MaprDuoBagsCorrections(DateTime shift, bool IsNight, List<Correction> Corrections, List<UPMAction.HU> HU_list)
         {
             lock (lockobject)
             {
@@ -217,7 +217,7 @@ namespace LUPLoader
                 SqlTransaction trans = null;
 
                 var hugroup=HU_list.GroupBy(h => new { h.MaterialNumber, h.Quantity });
-                var income=hugroup.Select(hg => new Correction() { Material = hg.Key.MaterialNumber.Trim().TrimStart('0'), BagWeight = Convert.ToInt32(hg.Key.Quantity), BagQuantity = hg.Count() }).ToList();
+                var income=hugroup.Select(hg => new Correction() { Material = hg.Key.MaterialNumber.Trim().TrimStart('0'), BagWeight = Convert.ToInt32(hg.Key.Quantity), Income = hg.Count() }).ToList();
                 var income_temp = new List<Correction>();
                 income_temp.AddRange(income);
                 var bags_corrections = new List<Bags_Correction>();
@@ -227,7 +227,7 @@ namespace LUPLoader
                     var income_mat = income.Find(i => i.BagWeight == c.BagWeight && c.Material == i.Material);
                     if (income_mat != null)
                     {
-                        bc.Income = income_mat.BagQuantity;
+                        bc.Income = income_mat.Income;
                         income_temp.Remove(income_mat);
                     }
                     else
@@ -236,7 +236,9 @@ namespace LUPLoader
                     }
                     bc.Material = c.Material;
                     bc.BagWeight = c.BagWeight;
-                    bc.BagQuantity = c.BagQuantity;
+                    bc.AtShiftStart = c.AtShiftStart;
+                    bc.Outgo = c.Outgo;
+                    bc.AtShiftEnd = c.AtShiftEnd;
                     bc.CorrectionValue = c.CorrectionValue;
                     bc.CorrectionText = c.CorrectionText;
                     bags_corrections.Add(bc);
@@ -245,10 +247,12 @@ namespace LUPLoader
                 foreach(var income_mat in income_temp)
                 {
                     var bc = new Bags_Correction();
-                    bc.Income = income_mat.BagQuantity;
+                    bc.Income = income_mat.Income;
                     bc.Material = income_mat.Material;
                     bc.BagWeight = income_mat.BagWeight;
-                    bc.BagQuantity = 0;
+                    bc.AtShiftStart = 0;
+                    bc.Outgo = 0;
+                    bc.AtShiftEnd = income_mat.Income;
                     bc.CorrectionValue = 0;
                     bc.CorrectionText = "Материала нет в списке MaprDuo";
                     bags_corrections.Add(bc);
@@ -271,25 +275,52 @@ namespace LUPLoader
                     {
                         connection.Open();
 
-                        Log.Add("Запись материалов на начало смены " + shift.ToShortDateString() + " " + (IsNight ? "Н" : "Д"), true, 0);
+                        Log.Add("Запись движения гранулята в смене " + shift.ToShortDateString() + " " + (IsNight ? "Н" : "Д"), true, 0);
                         trans = connection.BeginTransaction();
 
                         foreach (var corr in bags_corrections)
                         {
                             //SqlCommand cmd = new SqlCommand("insert into CorrectionsAtShiftEnd(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) VALUES(@DateShift,@IsNight,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText)", connection, trans);
                             //cmd.CommandType = CommandType.Text;
-                            SqlCommand cmd = new SqlCommand("SetCorrectionsAtShiftEnd", connection, trans);
+                            SqlCommand cmd = new SqlCommand(@"INSERT INTO [dbo].[MaprDuoShiftStatistics]
+           ([DateShift]
+           ,[IsNight]
+           ,[Material]
+           ,[BagWeight]
+           ,[BagQuantity_Start]
+           ,[Income]
+           ,[Loaded]
+           ,[BagQuantity_End]
+           ,[CorrectionValue]
+           ,[CorrectionText])
+         
+     VALUES
+           (@DateShift
+           ,@IsNight
+           ,@Material
+           ,@BagWeigh
+           ,@AtShiftStart
+           ,@Income
+           ,@Loaded
+           ,@AtShiftEnd
+           ,@CorrectionValue
+           ,@CorrectionText)", connection, trans);
                             cmd.CommandType = CommandType.StoredProcedure;
                             cmd.Parameters.Add("@DateShift", shift);
                             cmd.Parameters.Add("@IsNight", IsNight);
                             cmd.Parameters.Add("@Material", corr.Material);
                             cmd.Parameters.Add("@BagWeight", corr.BagWeight);
                             cmd.Parameters.Add("@Income", corr.Income);
-                            cmd.Parameters.Add("@BagQuantity", corr.BagQuantity);
+                            //cmd.Parameters.Add("@BagQuantity", corr.BagQuantity);
+                            cmd.Parameters.Add("@AtShiftStart",  corr.AtShiftStart);
+                            cmd.Parameters.Add("@Loaded",  corr.Outgo);
+                            cmd.Parameters.Add("@AtShiftEnd", corr.AtShiftEnd);
                             cmd.Parameters.Add("@CorrectionValue", corr.CorrectionValue);
                             cmd.Parameters.Add("@CorrectionText", corr.CorrectionText);
                             cmd.ExecuteNonQuery();
-                            Log.Add("Материал: " + corr.Material + ". Вес мешка: " + corr.BagWeight + ". Приход мешков: " + corr.Income+ ". Количество мешков: " + corr.BagQuantity + ". Поправка: " + corr.CorrectionValue + ". Текст поправки: " + corr.CorrectionText, true, 0);
+                            Log.Add(
+                                String.Format("Смена: {0}{1}, Материал: {2}, Вес мешка: {3}, На начало: {4} Приход: {5} Расход: {6} Конец: {7} Поправка: {8} Текст поправки: {9}", shift, IsNight ? "Н" : "Д", corr.Material, corr.BagWeight, corr.Income, corr.AtShiftStart, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, corr.CorrectionText)
+                                , true, 0); 
                         }
 
                         trans.Commit();
@@ -309,7 +340,144 @@ namespace LUPLoader
 
             }
         }
+        public static void MaprDuoLUPCorrections(DateTime shift, bool IsNight, List<Correction> Corrections)
+        {
+            lock (lockobject)
+            {
+                var selectedLanguage = "ru-RU";
+                Thread.CurrentThread.CurrentCulture =
+                    CultureInfo.CreateSpecificCulture(selectedLanguage);
+                Thread.CurrentThread.CurrentUICulture = new
+                    CultureInfo(selectedLanguage);
 
+                var cs = ConfigurationManager.ConnectionStrings["UPMConnectionString"].ConnectionString;
+                SqlTransaction trans = null;
+
+                /*var hugroup = HU_list.GroupBy(h => new { h.MaterialNumber, h.Quantity });
+                var income = hugroup.Select(hg => new Correction() { Material = hg.Key.MaterialNumber.Trim().TrimStart('0'), BagWeight = Convert.ToInt32(hg.Key.Quantity), Income = hg.Count() }).ToList();
+                var income_temp = new List<Correction>();
+                income_temp.AddRange(income);*/
+                var LUP_corrections = new List<LUP_Correction>();
+                foreach (var c in Corrections)
+                {
+                    var lc = new LUP_Correction();
+                    /*var income_mat = income.Find(i => i.BagWeight == c.BagWeight && c.Material == i.Material);
+                    if (income_mat != null)
+                    {
+                        bc.Income = income_mat.Income;
+                        income_temp.Remove(income_mat);
+                    }
+                    else
+                    {
+                        bc.Income = 0;
+                    }*/
+                    lc.LUP = c.LUP;
+                    lc.Material = c.Material;
+                    lc.AtShiftStart = c.AtShiftStart;
+                    lc.Income = c.Income;
+                    lc.Outgo = c.Outgo;
+                    lc.AtShiftEnd = c.AtShiftEnd;
+                    lc.CorrectionValue = c.CorrectionValue;
+                    lc.CorrectionText = c.CorrectionText;
+                    LUP_corrections.Add(lc);
+                }
+
+                /*foreach (var income_mat in income_temp)
+                {
+                    var bc = new LUP_Correction();
+                    bc.Income = income_mat.Income;
+                    bc.Material = income_mat.Material;
+                    bc.BagWeight = income_mat.BagWeight;
+                    bc.AtShiftStart = 0;
+                    bc.Outgo = 0;
+                    bc.AtShiftEnd = income_mat.Income;
+                    bc.CorrectionValue = 0;
+                    bc.CorrectionText = "Материала нет в списке MaprDuo";
+                    LUP_corrections.Add(bc);
+                }*/
+
+                /*var bags_corrections_r = (from c in Corrections
+                                       join hu in income on c.Material equals hu.Material into hu_temp
+                                       from h_income in hu_temp.DefaultIfEmpty()
+                                       select new Bags_Correction() { Material = c.Material, BagWeight = c.BagWeight, BagQuantity = c.BagQuantity, CorrectionValue = c.CorrectionValue, CorrectionText = c.CorrectionText, Income = h_income==null?0:h_income.BagQuantity }).ToList();
+                
+                var bags_corrections_l = (from h_income in income
+                                         join c in Corrections on h_income.Material equals c.Material into c_temp
+                                         from c in c_temp.DefaultIfEmpty()
+                                         select new Bags_Correction() { Material = h_income.Material, BagWeight = h_income.BagWeight, BagQuantity = h_income.BagQuantity, CorrectionValue = c==null?(short)0:c.CorrectionValue, CorrectionText = c == null ? "" : c.CorrectionText??"", Income = h_income == null ? 0 : h_income.BagQuantity }).ToList();
+                var bags_corrections = bags_corrections_r.Union(bags_corrections_l).ToList();*/
+
+                try
+                {
+                    using (SqlConnection connection = new SqlConnection(cs))
+                    {
+                        connection.Open();
+
+                        Log.Add("Запись движений гранулята в линиях в смене " + shift.ToShortDateString() + " " + (IsNight ? "Н" : "Д"), true, 0);
+                        trans = connection.BeginTransaction();
+
+                        foreach (var corr in LUP_corrections)
+                        {
+                            //SqlCommand cmd = new SqlCommand("insert into CorrectionsAtShiftEnd(DateShift,IsNight,Material,BagWeight,Income,BagQuantity,CorrectionValue,CorrectionText) VALUES(@DateShift,@IsNight,@Material,@BagWeight,@Income,@BagQuantity,@CorrectionValue,@CorrectionText)", connection, trans);
+                            //cmd.CommandType = CommandType.Text;
+                            SqlCommand cmd = new SqlCommand(@"INSERT INTO [dbo].[MaprDuoLUPShiftStatistics]
+           ([DateShift]
+           ,[IsNight]
+           ,[LUP]
+           ,[Material]
+           ,[LUPAtShiftStart]
+           ,[Income]
+           ,[Consumption]
+           ,[LUPAtShiftEnd]
+           ,[CorrectionValue]
+           ,[CorrectionText])
+         
+     VALUES
+           (@DateShift
+           ,@IsNight
+           ,@LUP
+           ,@Material
+           ,@LUPAtShiftStart
+           ,@Income
+           ,@Consumption
+           ,@LUPAtShiftEnd
+           ,@CorrectionValue
+           ,@CorrectionText)", connection, trans);
+                            cmd.CommandType = CommandType.StoredProcedure;
+                            cmd.Parameters.Add("@DateShift", shift);
+                            cmd.Parameters.Add("@IsNight", IsNight);
+                            cmd.Parameters.Add("@LUP", corr.LUP);
+                            cmd.Parameters.Add("@Material", corr.Material);
+                            //cmd.Parameters.Add("@BagQuantity", corr.BagQuantity);
+                            cmd.Parameters.Add("@LUPAtShiftStart", corr.AtShiftStart);
+                            cmd.Parameters.Add("@Income", corr.Income);
+                            cmd.Parameters.Add("@Consumption", corr.Outgo);
+                            cmd.Parameters.Add("@LUPAtShiftEnd", corr.AtShiftEnd);
+                            cmd.Parameters.Add("@CorrectionValue", corr.CorrectionValue);
+                            cmd.Parameters.Add("@CorrectionText", corr.CorrectionText);
+                            cmd.ExecuteNonQuery();
+                            Log.Add(
+                                String.Format("Смена: {0}{1}, LUP: {2}, Материал: {3}, На начало: {4} Приход: {5} Расход: {6} Конец: {7} Поправка: {8} Текст поправки: {9}", shift, IsNight ? "Н" : "Д", corr.LUP, corr.Material, corr.Income, corr.AtShiftStart, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, corr.CorrectionText)
+                                , true, 0);
+                        }
+
+                        trans.Commit();
+                        Log.Add("Запись закончена. Транзакция подтверждена", true, 0);
+                    }
+                }
+                catch (Exception ex) //error occurred
+                {
+                    Log.Add(ex);
+                    Log.Add("Отмена транзакции", true, 0);
+                    if (trans != null)
+                        trans.Rollback();
+                    Log.Add("Транзакция отменена", true, 0);
+                    //Handel error
+                }
+
+
+            }
+        }
         static void StopReport(object sender, EventArgs e)
         {
             try
@@ -327,8 +495,21 @@ namespace LUPLoader
     {
         public string Material;
         public int BagWeight;
+        public int AtShiftStart;
         public int Income;
-        public int BagQuantity;
+        public int Outgo;
+        public int AtShiftEnd;
+        public short CorrectionValue;
+        public string CorrectionText;
+    }
+    internal class LUP_Correction
+    {
+        public int LUP;
+        public string Material;
+        public int AtShiftStart;
+        public int Income;
+        public int Outgo;
+        public int AtShiftEnd;
         public short CorrectionValue;
         public string CorrectionText;
     }

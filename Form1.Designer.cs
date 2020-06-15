@@ -38,6 +38,7 @@
             this.button2 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
             this.panel1 = new System.Windows.Forms.Panel();
+            this.domainUpDown1 = new System.Windows.Forms.DomainUpDown();
             this.button6 = new System.Windows.Forms.Button();
             this.listView1 = new System.Windows.Forms.ListView();
             this.columnHeader1 = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -102,7 +103,7 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(420, 3);
+            this.button2.Location = new System.Drawing.Point(471, 3);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(155, 23);
             this.button2.TabIndex = 3;
@@ -112,7 +113,7 @@
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(150, 3);
+            this.button3.Location = new System.Drawing.Point(300, 3);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(154, 23);
             this.button3.TabIndex = 4;
@@ -123,6 +124,7 @@
             // panel1
             // 
             this.panel1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
+            this.panel1.Controls.Add(this.domainUpDown1);
             this.panel1.Controls.Add(this.button6);
             this.panel1.Controls.Add(this.button2);
             this.panel1.Controls.Add(this.button3);
@@ -131,6 +133,19 @@
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(1021, 30);
             this.panel1.TabIndex = 5;
+            // 
+            // domainUpDown1
+            // 
+            this.domainUpDown1.Items.Add("LUPWeight");
+            this.domainUpDown1.Items.Add("PLLUP");
+            this.domainUpDown1.Items.Add("GranulateToLUP");
+            this.domainUpDown1.Items.Add("IncomeRequest");
+            this.domainUpDown1.Items.Add("ShiftBags");
+            this.domainUpDown1.Items.Add("ShiftLUP");
+            this.domainUpDown1.Location = new System.Drawing.Point(195, 6);
+            this.domainUpDown1.Name = "domainUpDown1";
+            this.domainUpDown1.Size = new System.Drawing.Size(99, 20);
+            this.domainUpDown1.TabIndex = 6;
             // 
             // button6
             // 
@@ -269,6 +284,7 @@
         private System.Windows.Forms.ToolStripMenuItem OpenLogToolStripMenuItem;
         private System.Windows.Forms.Label ProcessCommandMessage;
         private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.DomainUpDown domainUpDown1;
     }
 }
 

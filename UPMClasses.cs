@@ -398,13 +398,23 @@ namespace LUPLoader
                     return String.Format("Загрузка гранулята: ID:{3}, LUP:{0}, Материал:{1}, Мешков:{2}", LUP, Material,BagQuant,MessageID);
                 case UPMCommandType.UPMIncome:
                     return String.Format("Запрос прихода гранулята на УПМ: ID:{0}, Смена:{1}",MessageID,ShiftDate.ToShortDateString()+(IsNightShift?"Н":"Д"));
-                case UPMCommandType.EndShiftCorrection:
+                case UPMCommandType.EndShiftBagsCorrection:
                     {
                         StringBuilder sb = new StringBuilder();
-                        sb.Append("Данные о поправках:");
+                        sb.AppendLine("Данные о поправках мешков на УПМ:");
                         foreach (var corr in Corrections)
                         {
-                            sb.Append(String.Format("(Материал: {0} Упаковка: {1} Мешков: {2} Поправка: {3}{4})",corr.Material,corr.BagWeight,corr.BagQuantity,corr.CorrectionValue,String.IsNullOrWhiteSpace(corr.CorrectionText)?"":"("+corr.CorrectionText+")"));
+                            sb.AppendLine(String.Format("(Материал: {0} Упаковка: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material,corr.BagWeight,corr.AtShiftEnd, corr.Income, corr.Outgo, corr.AtShiftEnd,corr.CorrectionValue,String.IsNullOrWhiteSpace(corr.CorrectionText)?"":"("+corr.CorrectionText+")"));
+                        }
+                        return sb.ToString();
+                    }
+                case UPMCommandType.EndShiftLUPCorrection:
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        sb.AppendLine("Данные о поправках гранулята на LUP:");
+                        foreach (var corr in Corrections)
+                        {
+                            sb.AppendLine(String.Format("(Материал: {0} LUP: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material, corr.LUP, corr.AtShiftEnd, corr.Income, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, String.IsNullOrWhiteSpace(corr.CorrectionText) ? "" : "(" + corr.CorrectionText + ")"));
                         }
                         return sb.ToString();
                     }
@@ -439,11 +449,21 @@ namespace LUPLoader
     public class Correction
     {
         [DataMember]
+        public UPMCorrectionType CorrectionType;
+        [DataMember]
         public string Material;
         [DataMember]
         public int BagWeight;
         [DataMember]
-        public int BagQuantity;
+        public int LUP;
+        [DataMember]
+        public int AtShiftStart;
+        [DataMember]
+        public int Income;
+        [DataMember]
+        public int Outgo;
+        [DataMember]
+        public int AtShiftEnd;
         [DataMember]
         public short CorrectionValue;
         [DataMember]
@@ -456,7 +476,14 @@ namespace LUPLoader
         MachineStatus,
         GranulateLoad,
         UPMIncome,
-        EndShiftCorrection
+        EndShiftBagsCorrection,
+        EndShiftLUPCorrection
+    }
+
+    public enum UPMCorrectionType
+    {
+        UPMBagsCorrection,
+        UPMLUPGranulate
     }
 
     /*public class MachineStatus
@@ -826,7 +853,7 @@ namespace LUPLoader
                                 /*var material = data.GetRange(StartI + 4, 10).ToArray();
                                 var materialNumber = Encoding.ASCII.GetString(material);*/
                                 HasResult = true;
-                                command.Command = UPMCommandType.EndShiftCorrection;
+                                command.Command = UPMCommandType.EndShiftBagsCorrection;
                                 command.ShiftDate = new DateTime(year+2000, month, day);
                                 command.IsNightShift = shift == 1;
                                 command.MessageID = MsgID;
@@ -841,22 +868,84 @@ namespace LUPLoader
                                     var arr = data.ToArray();
                                     var material = data.GetRange(StartI + DataOffset + 0, 10).ToArray();
                                     var materialNumber = Encoding.ASCII.GetString(material);
+                                    corr.CorrectionType = UPMCorrectionType.UPMBagsCorrection;
                                     corr.Material = materialNumber;
 
                                     corr.BagWeight = BitConverter.ToInt16(arr, StartI + DataOffset + 10);
                                     //corr.BagWeight = data[StartI + DataOffset + 11] + 256 * data[StartI + DataOffset + 12];
 
-                                    corr.BagQuantity = BitConverter.ToInt16(arr, StartI + DataOffset + 12);
+                                    corr.AtShiftStart = BitConverter.ToInt16(arr, StartI + DataOffset + 12);
+                                    corr.Income = BitConverter.ToInt16(arr, StartI + DataOffset + 14);
+                                    corr.Outgo = BitConverter.ToInt16(arr, StartI + DataOffset + 16);
+                                    corr.AtShiftEnd = BitConverter.ToInt16(arr, StartI + DataOffset + 18);
                                     //corr.BagQuantity = data[StartI + DataOffset + 13] + 256 * data[StartI + DataOffset + 14];
                                     
-                                    corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 14);
+                                    corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 20);
                                     //corr.CorrectionData = (short)((UInt16)data[StartI + DataOffset + 15] | ((UInt16)data[StartI + DataOffset + 16]) << 8);
-                                    var textlength = data[StartI + DataOffset + 16];
-                                    var btext = data.GetRange(StartI + DataOffset + 17, textlength).ToArray();
+                                    var textlength = data[StartI + DataOffset + 22];
+                                    var btext = data.GetRange(StartI + DataOffset + 23, textlength).ToArray();
                                     corr.CorrectionText = Encoding.GetEncoding(1251).GetString(btext);
                                     command.Corrections.Add(corr);
-                                    DataOffset += 17 + textlength;
+                                    DataOffset += 23 + textlength;
                                 } while (data.Count>StartI+DataOffset&&data[StartI+DataOffset]!=0xff);
+                                MsgLength = DataOffset;
+                            }
+                            else
+                            {
+                                MsgLength = 0;
+                            }
+
+                        }
+                        break;
+                    case 6:
+                        {
+                            if (data.Count >= StartI + MsgLength)
+                            {
+                                byte day = data[StartI + 3];
+                                byte month = data[StartI + 4];
+                                byte year = data[StartI + 5];
+                                byte shift = data[StartI + 6];
+
+                                /*var material = data.GetRange(StartI + 4, 10).ToArray();
+                                var materialNumber = Encoding.ASCII.GetString(material);*/
+                                HasResult = true;
+                                command.Command = UPMCommandType.EndShiftLUPCorrection;
+                                command.ShiftDate = new DateTime(year + 2000, month, day);
+                                command.IsNightShift = shift == 1;
+                                command.MessageID = MsgID;
+
+                                command.Corrections = new List<Correction>();
+                                int DataOffset = 7;
+                                do
+                                {
+                                    var corr = new Correction();
+
+                                    //10 byte StartI+DataOffset+0
+                                    var arr = data.ToArray();
+                                    corr.LUP = arr[StartI + DataOffset + 0];
+
+                                    var material = data.GetRange(StartI + DataOffset + 1, 10).ToArray();
+                                    var materialNumber = Encoding.ASCII.GetString(material);
+                                    corr.CorrectionType = UPMCorrectionType.UPMBagsCorrection;
+                                    corr.Material = materialNumber;
+
+                                    //corr.BagWeight = BitConverter.ToInt16(arr, StartI + DataOffset + 10);
+                                    //corr.BagWeight = data[StartI + DataOffset + 11] + 256 * data[StartI + DataOffset + 12];
+
+                                    corr.AtShiftStart = BitConverter.ToInt32(arr, StartI + DataOffset + 11);
+                                    corr.Income = BitConverter.ToInt32(arr, StartI + DataOffset + 15);
+                                    corr.Outgo = BitConverter.ToInt32(arr, StartI + DataOffset + 19);
+                                    corr.AtShiftEnd = BitConverter.ToInt32(arr, StartI + DataOffset + 23);
+                                    //corr.BagQuantity = data[StartI + DataOffset + 13] + 256 * data[StartI + DataOffset + 14];
+
+                                    corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 27);
+                                    //corr.CorrectionData = (short)((UInt16)data[StartI + DataOffset + 15] | ((UInt16)data[StartI + DataOffset + 16]) << 8);
+                                    var textlength = data[StartI + DataOffset + 29];
+                                    var btext = data.GetRange(StartI + DataOffset + 30, textlength).ToArray();
+                                    corr.CorrectionText = Encoding.GetEncoding(1251).GetString(btext);
+                                    command.Corrections.Add(corr);
+                                    DataOffset += 30 + textlength;
+                                } while (data.Count > StartI + DataOffset && data[StartI + DataOffset] != 0xff);
                                 MsgLength = DataOffset;
                             }
                             else
@@ -1053,6 +1142,7 @@ namespace LUPLoader
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
 
             var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
+            if (index < 0) index = 0;
             Got_HU_to_UPM = Got_HU_to_UPM.Skip(index+1).ToList();
 
             return Got_HU_to_UPM;
@@ -1106,6 +1196,7 @@ namespace LUPLoader
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
 
             var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == lastbag.TransferOrder);
+            if (index < 0) index = 0;
             Got_HU_to_UPM = Got_HU_to_UPM.Skip(index+1).ToList();
 
             return Got_HU_to_UPM;
@@ -1589,7 +1680,7 @@ namespace LUPLoader
                         }
                         break;
                     }
-                case UPMCommandType.EndShiftCorrection:
+                case UPMCommandType.EndShiftBagsCorrection:
                     {
                         try
                         {
@@ -1607,9 +1698,60 @@ namespace LUPLoader
                         {
                             Log.Add("Не удалось передать ответ клиенту");
                         }
+
+                        // Данные передаются в конце смены, если передана текущая смена, значит смена неправильная, и на самом деле это предыдущая смена
+                        var cShift = new Shift(DateTime.Now);
+                        if (cShift.ShiftStart==cmd.ShiftDate && cShift.IsNightShift == cmd.IsNightShift)
+                        {
+                            if (cmd.IsNightShift)
+                            {
+                                cmd.IsNightShift = false;
+                            }
+                            else
+                            {
+                                cmd.IsNightShift = true;
+                                cmd.ShiftDate = cmd.ShiftDate.AddDays(-1);
+                            }
+                        }
                         // список мешков привезенных на UPM в течение смены
                         var HU_lst = HU_At_UPM(cmd.ShiftDate, cmd.IsNightShift);
-                        Report.MaprDuoCorrections(cmd.ShiftDate, cmd.IsNightShift, cmd.Corrections, HU_lst);
+                        Report.MaprDuoBagsCorrections(cmd.ShiftDate, cmd.IsNightShift, cmd.Corrections, HU_lst);
+                    }
+                    break;
+                case UPMCommandType.EndShiftLUPCorrection:
+                    {
+                        try
+                        {
+                            if (cmd.NetworkClient != null)
+                            {
+                                var resp = cmd.ResponseOK();
+                                cmd.NetworkClient.Connection.GetStream().Write(resp, 0, resp.Length);
+                                Log.Add("Ответ клиенту " + cmd.NetworkClient.Connection.Client.RemoteEndPoint.ToString() + ": <" + Log.ByteArrayToHexString(resp) + "> - \"OK\"", true, 2);
+                            }
+                            else
+                            {
+                                Log.Add("Нет подключения клиента", true, 2);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Add("Не удалось передать ответ клиенту");
+                        }
+                        // Данные передаются в конце смены, если передана текущая смена, значит смена неправильная, и на самом деле это предыдущая смена
+                        var cShift = new Shift(DateTime.Now);
+                        if (cShift.ShiftStart == cmd.ShiftDate && cShift.IsNightShift == cmd.IsNightShift)
+                        {
+                            if (cmd.IsNightShift)
+                            {
+                                cmd.IsNightShift = false;
+                            }
+                            else
+                            {
+                                cmd.IsNightShift = true;
+                                cmd.ShiftDate = cmd.ShiftDate.AddDays(-1);
+                            }
+                        }
+                        Report.MaprDuoLUPCorrections(cmd.ShiftDate, cmd.IsNightShift, cmd.Corrections);
                     }
                     break;
             }
@@ -1754,6 +1896,7 @@ namespace LUPLoader
                 var hl = hug.ToList();
                 hl = hl.FindAll(hh => hh.DT >= lastbag.LastBag);
                 var index = hl.FindIndex(hu => hu.TransferOrderNumber == lastbag.LastTransferOrder);
+                if (index < 0) index = 0;
                 hl = hl.Skip(index + 1).ToList();
                 new_hus.AddRange(hl);
             }
