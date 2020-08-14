@@ -404,7 +404,7 @@ namespace LUPLoader
                         sb.AppendLine("Данные о поправках мешков на УПМ:");
                         foreach (var corr in Corrections)
                         {
-                            sb.AppendLine(String.Format("(Материал: {0} Упаковка: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material,corr.BagWeight,corr.AtShiftEnd, corr.Income, corr.Outgo, corr.AtShiftEnd,corr.CorrectionValue,String.IsNullOrWhiteSpace(corr.CorrectionText)?"":"("+corr.CorrectionText+")"));
+                            sb.AppendLine(String.Format("(Материал: {0} Упаковка: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material,corr.BagWeight,corr.AtShiftStart, corr.Income, corr.Outgo, corr.AtShiftEnd,corr.CorrectionValue,String.IsNullOrWhiteSpace(corr.CorrectionText)?"":"("+corr.CorrectionText+")"));
                         }
                         return sb.ToString();
                     }
@@ -414,7 +414,7 @@ namespace LUPLoader
                         sb.AppendLine("Данные о поправках гранулята на LUP:");
                         foreach (var corr in Corrections)
                         {
-                            sb.AppendLine(String.Format("(Материал: {0} LUP: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material, corr.LUP, corr.AtShiftEnd, corr.Income, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, String.IsNullOrWhiteSpace(corr.CorrectionText) ? "" : "(" + corr.CorrectionText + ")"));
+                            sb.AppendLine(String.Format("(Материал: {0} LUP: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material, corr.LUP, corr.AtShiftStart, corr.Income, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, String.IsNullOrWhiteSpace(corr.CorrectionText) ? "" : "(" + corr.CorrectionText + ")"));
                         }
                         return sb.ToString();
                     }
@@ -465,7 +465,7 @@ namespace LUPLoader
         [DataMember]
         public int AtShiftEnd;
         [DataMember]
-        public short CorrectionValue;
+        public int CorrectionValue;
         [DataMember]
         public string CorrectionText;
     }
@@ -875,19 +875,19 @@ namespace LUPLoader
                                     //corr.BagWeight = data[StartI + DataOffset + 11] + 256 * data[StartI + DataOffset + 12];
 
                                     corr.AtShiftStart = BitConverter.ToInt16(arr, StartI + DataOffset + 12);
-                                    corr.Income = BitConverter.ToInt16(arr, StartI + DataOffset + 14);
-                                    corr.Outgo = BitConverter.ToInt16(arr, StartI + DataOffset + 16);
-                                    corr.AtShiftEnd = BitConverter.ToInt16(arr, StartI + DataOffset + 18);
+                                    //corr.Income = BitConverter.ToInt16(arr, StartI + DataOffset + 14);
+                                    corr.Outgo = BitConverter.ToInt16(arr, StartI + DataOffset + 14);
+                                    corr.AtShiftEnd = BitConverter.ToInt16(arr, StartI + DataOffset + 16);
                                     //corr.BagQuantity = data[StartI + DataOffset + 13] + 256 * data[StartI + DataOffset + 14];
                                     
-                                    corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 20);
+                                    corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 18);
                                     //corr.CorrectionData = (short)((UInt16)data[StartI + DataOffset + 15] | ((UInt16)data[StartI + DataOffset + 16]) << 8);
-                                    var textlength = data[StartI + DataOffset + 22];
-                                    var btext = data.GetRange(StartI + DataOffset + 23, textlength).ToArray();
+                                    var textlength = data[StartI + DataOffset + 19];
+                                    var btext = data.GetRange(StartI + DataOffset + 20, textlength).ToArray();
                                     corr.CorrectionText = Encoding.GetEncoding(1251).GetString(btext);
                                     command.Corrections.Add(corr);
-                                    DataOffset += 23 + textlength;
-                                } while (data.Count>StartI+DataOffset&&data[StartI+DataOffset]!=0xff);
+                                    DataOffset += 20 + textlength;
+                                } while (data.Count>StartI+DataOffset+1 && data[StartI+DataOffset]!=0xff);
                                 MsgLength = DataOffset;
                             }
                             else
@@ -938,13 +938,13 @@ namespace LUPLoader
                                     corr.AtShiftEnd = BitConverter.ToInt32(arr, StartI + DataOffset + 23);
                                     //corr.BagQuantity = data[StartI + DataOffset + 13] + 256 * data[StartI + DataOffset + 14];
 
-                                    corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 27);
+                                    corr.CorrectionValue = BitConverter.ToInt32(arr, StartI + DataOffset + 27);
                                     //corr.CorrectionData = (short)((UInt16)data[StartI + DataOffset + 15] | ((UInt16)data[StartI + DataOffset + 16]) << 8);
-                                    var textlength = data[StartI + DataOffset + 29];
-                                    var btext = data.GetRange(StartI + DataOffset + 30, textlength).ToArray();
+                                    var textlength = data[StartI + DataOffset + 31];
+                                    var btext = data.GetRange(StartI + DataOffset + 32, textlength).ToArray();
                                     corr.CorrectionText = Encoding.GetEncoding(1251).GetString(btext);
                                     command.Corrections.Add(corr);
-                                    DataOffset += 30 + textlength;
+                                    DataOffset += 32 + textlength;
                                 } while (data.Count > StartI + DataOffset && data[StartI + DataOffset] != 0xff);
                                 MsgLength = DataOffset;
                             }

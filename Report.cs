@@ -298,14 +298,14 @@ namespace LUPLoader
            (@DateShift
            ,@IsNight
            ,@Material
-           ,@BagWeigh
+           ,@BagWeight
            ,@AtShiftStart
            ,@Income
            ,@Loaded
            ,@AtShiftEnd
            ,@CorrectionValue
            ,@CorrectionText)", connection, trans);
-                            cmd.CommandType = CommandType.StoredProcedure;
+                            cmd.CommandType = CommandType.Text;
                             cmd.Parameters.Add("@DateShift", shift);
                             cmd.Parameters.Add("@IsNight", IsNight);
                             cmd.Parameters.Add("@Material", corr.Material);
@@ -443,7 +443,7 @@ namespace LUPLoader
            ,@LUPAtShiftEnd
            ,@CorrectionValue
            ,@CorrectionText)", connection, trans);
-                            cmd.CommandType = CommandType.StoredProcedure;
+                            cmd.CommandType = CommandType.Text;
                             cmd.Parameters.Add("@DateShift", shift);
                             cmd.Parameters.Add("@IsNight", IsNight);
                             cmd.Parameters.Add("@LUP", corr.LUP);
@@ -499,7 +499,7 @@ namespace LUPLoader
         public int Income;
         public int Outgo;
         public int AtShiftEnd;
-        public short CorrectionValue;
+        public int CorrectionValue;
         public string CorrectionText;
     }
     internal class LUP_Correction
@@ -510,7 +510,7 @@ namespace LUPLoader
         public int Income;
         public int Outgo;
         public int AtShiftEnd;
-        public short CorrectionValue;
+        public int CorrectionValue;
         public string CorrectionText;
     }
 }
