@@ -882,11 +882,11 @@ namespace LUPLoader
                                     
                                     corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 18);
                                     //corr.CorrectionData = (short)((UInt16)data[StartI + DataOffset + 15] | ((UInt16)data[StartI + DataOffset + 16]) << 8);
-                                    var textlength = data[StartI + DataOffset + 19];
-                                    var btext = data.GetRange(StartI + DataOffset + 20, textlength).ToArray();
+                                    var textlength = data[StartI + DataOffset + 20];
+                                    var btext = data.GetRange(StartI + DataOffset + 21, textlength).ToArray();
                                     corr.CorrectionText = Encoding.GetEncoding(1251).GetString(btext);
                                     command.Corrections.Add(corr);
-                                    DataOffset += 20 + textlength;
+                                    DataOffset += 21 + textlength;
                                 } while (data.Count>StartI+DataOffset+1 && data[StartI+DataOffset]!=0xff);
                                 MsgLength = DataOffset;
                             }
@@ -1159,11 +1159,11 @@ namespace LUPLoader
 
             var to_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(NLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             to_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
-            to_upm = to_upm.FindAll(h => h.DT > fromdate);
+            to_upm = to_upm.FindAll(h => h.DT >= fromdate);
 
             var from_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(VLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             from_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
-            from_upm = from_upm.FindAll(h => h.DT > fromdate);
+            from_upm = from_upm.FindAll(h => h.DT >= fromdate);
 
             var fu_hu_num = from_upm.Select(n => n.SU).ToList();
             var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
@@ -1227,7 +1227,7 @@ namespace LUPLoader
             {
                 if (a[index].DT >= lastbag && a[index].TransferOrderNumber == LastBag.LastTransferOrder) break;
             }
-            var newind = index + BagQuant + (BagQuant>0?-1:0);
+            var newind = index + BagQuant;// + (BagQuant>0?-1:0);
             if (newind < 0 || newind > a.Count - 1)
             {
                 //throw new OverflowException();
