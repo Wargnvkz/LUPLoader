@@ -254,25 +254,26 @@ namespace LUPLoader
             }
         }
 
-        private void button7_Click(object sender, EventArgs e)
+        private void btnBagsShift_Click(object sender, EventArgs e)
         {
             var pwd = Prompt.ShowDialog("Введите пароль", "Введите пароль", true);
             if (pwd == Settings.GetOptionValue<string>(Constants.AdminPassword))
             {
                 var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
                 long n;
-                bool b=false;
+                bool b = false;
                 string material;
-                do{
+                do
+                {
                     material = Prompt.ShowDialog("Введите номер материала", "Ввод данных", false);
                     if (String.IsNullOrWhiteSpace(material)) return;
                     material = material.Trim().TrimStart('0');
-                    b=long.TryParse(material,out n);
+                    b = long.TryParse(material, out n);
                     if (!b)
                     {
                         MessageBox.Show("Материал должен быть целым числом");
                     }
-                    
+
                     var mn = material.Trim().TrimStart('0').PadLeft(18, '0');
                     var fg = gran.Find(g => g == mn);
                     if (fg == null)
@@ -282,7 +283,7 @@ namespace LUPLoader
                     }
 
                 }
-                while(!b);
+                while (!b);
 
                 int nbags = 0;
                 do
@@ -296,7 +297,7 @@ namespace LUPLoader
                     }
                 } while (!b);
 
-                Log.Add("Пользователь выполняет сдвиг мешков для материала "+material+" на "+nbags);
+                Log.Add("Пользователь выполняет сдвиг мешков для материала " + material + " на " + nbags);
                 var LastBag = UPMAction.GetLastBag(material);
                 //DateTime newlastbag;
                 //UPMAction.MoveBags(material, nbags, LastBag,out newlastbag);
@@ -393,6 +394,17 @@ namespace LUPLoader
             }
             
 
+        }
+
+        private void btnBagsList_Click(object sender, EventArgs e)
+        {
+            var gls = new GranulateListSelect();
+            if (gls.ShowDialog() == DialogResult.OK)
+            {
+                var granul = gls.SelectedGranulate;
+                var bl = new BagList(granul);
+                bl.Show();
+            }
         }
     }
 }

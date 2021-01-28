@@ -56,15 +56,16 @@
             this.button6 = new System.Windows.Forms.Button();
             this.label11 = new System.Windows.Forms.Label();
             this.cmbLogLevel = new System.Windows.Forms.ComboBox();
-            this.button7 = new System.Windows.Forms.Button();
+            this.btnBagsShift = new System.Windows.Forms.Button();
             this.GranulateLoadButton = new System.Windows.Forms.Button();
+            this.btnBagsList = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // button1
             // 
             this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.button1.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.button1.Location = new System.Drawing.Point(12, 419);
+            this.button1.Location = new System.Drawing.Point(12, 439);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 0;
@@ -75,7 +76,7 @@
             // 
             this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.button2.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.button2.Location = new System.Drawing.Point(321, 419);
+            this.button2.Location = new System.Drawing.Point(321, 439);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
             this.button2.TabIndex = 1;
@@ -129,7 +130,7 @@
             this.checkBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.checkBox1.AutoCheck = false;
             this.checkBox1.AutoSize = true;
-            this.checkBox1.Location = new System.Drawing.Point(9, 396);
+            this.checkBox1.Location = new System.Drawing.Point(9, 416);
             this.checkBox1.Name = "checkBox1";
             this.checkBox1.Size = new System.Drawing.Size(105, 17);
             this.checkBox1.TabIndex = 11;
@@ -310,15 +311,15 @@
             this.cmbLogLevel.Size = new System.Drawing.Size(75, 21);
             this.cmbLogLevel.TabIndex = 31;
             // 
-            // button7
+            // btnBagsShift
             // 
-            this.button7.Location = new System.Drawing.Point(12, 356);
-            this.button7.Name = "button7";
-            this.button7.Size = new System.Drawing.Size(219, 23);
-            this.button7.TabIndex = 32;
-            this.button7.Text = "Сдвиг мешков";
-            this.button7.UseVisualStyleBackColor = true;
-            this.button7.Click += new System.EventHandler(this.button7_Click);
+            this.btnBagsShift.Location = new System.Drawing.Point(12, 356);
+            this.btnBagsShift.Name = "btnBagsShift";
+            this.btnBagsShift.Size = new System.Drawing.Size(219, 23);
+            this.btnBagsShift.TabIndex = 32;
+            this.btnBagsShift.Text = "Сдвиг мешков";
+            this.btnBagsShift.UseVisualStyleBackColor = true;
+            this.btnBagsShift.Click += new System.EventHandler(this.btnBagsShift_Click);
             // 
             // GranulateLoadButton
             // 
@@ -330,13 +331,24 @@
             this.GranulateLoadButton.UseVisualStyleBackColor = true;
             this.GranulateLoadButton.Click += new System.EventHandler(this.GranulateLoadButton_Click);
             // 
+            // btnBagsList
+            // 
+            this.btnBagsList.Location = new System.Drawing.Point(12, 385);
+            this.btnBagsList.Name = "btnBagsList";
+            this.btnBagsList.Size = new System.Drawing.Size(219, 23);
+            this.btnBagsList.TabIndex = 34;
+            this.btnBagsList.Text = "Список мешков на УПМ";
+            this.btnBagsList.UseVisualStyleBackColor = true;
+            this.btnBagsList.Click += new System.EventHandler(this.btnBagsList_Click);
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(404, 454);
+            this.ClientSize = new System.Drawing.Size(404, 474);
+            this.Controls.Add(this.btnBagsList);
             this.Controls.Add(this.GranulateLoadButton);
-            this.Controls.Add(this.button7);
+            this.Controls.Add(this.btnBagsShift);
             this.Controls.Add(this.cmbLogLevel);
             this.Controls.Add(this.label11);
             this.Controls.Add(this.button6);
@@ -402,7 +414,8 @@
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Label label11;
         private System.Windows.Forms.ComboBox cmbLogLevel;
-        private System.Windows.Forms.Button button7;
+        private System.Windows.Forms.Button btnBagsShift;
         private System.Windows.Forms.Button GranulateLoadButton;
+        private System.Windows.Forms.Button btnBagsList;
     }
 }
