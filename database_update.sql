@@ -226,3 +226,70 @@ INSERT INTO [dbo].[MaprDuoShiftStatistics](
 )
 
 GO
+
+-------------------------- Переход на единую партию --------------------------------------------------
+
+USE [UPM_Test]
+GO
+
+--ALTER TABLE [dbo].[LUPLastBag]
+--DROP COLUMN [Batch]
+
+ALTER TABLE [dbo].[LUPLastBag]
+ADD Batch varchar(10), [IsReturn] bit
+
+update [LUPLastBag]
+SET [IsReturn]=0
+
+GO
+alter PROCEDURE [dbo].[GetLastBag]
+	(
+	@MaterialNumber varchar(10)		-- Материал
+	, @Batch varchar(10) = NULL
+	, @IsReturn bit = 0
+	)
+AS
+	SELECT LastBagTime
+	, LastTransferOrder 
+	,Batch
+	,IsReturn
+	FROM LUPLastBag
+		WHERE MaterialNumber=@MaterialNumber
+		AND (Batch = @Batch OR (@Batch is NULL AND Batch IS NULL)) AND IsReturn=@IsReturn
+
+GO
+
+alter PROCEDURE [dbo].[SetLastBag]
+	(
+	@MaterialNumber varchar(10),		-- Материал
+	@LastBagTime [DateTime]   -- Время последнего загруженного мешка,
+	,	@LastTransferOrder bigint = 999999999
+	, @Batch varchar(10) = null
+	, @IsReturn bit = 0
+	)
+AS
+	DECLARE @count smallint
+
+	SET @count = ISNULL(
+		(SELECT COUNT(*) 
+		FROM LUPLastBag
+		WHERE MaterialNumber=@MaterialNumber AND (Batch = @Batch OR (@Batch is NULL AND Batch IS NULL)) AND IsReturn=@IsReturn), 0)
+
+	IF @count>0
+	BEGIN	
+	UPDATE LUPLastBag 
+		SET LastBagTime = @LastBagTime
+		,LastTransferOrder=@LastTransferOrder
+
+		WHERE MaterialNumber=@MaterialNumber AND (Batch = @Batch OR (@Batch is NULL AND Batch IS NULL)) AND IsReturn=@IsReturn;
+	END	
+
+	ELSE
+	BEGIN	
+	INSERT INTO LUPLastBag(MaterialNumber, LastBagTime, LastTransferOrder,Batch,IsReturn) VALUES(@MaterialNumber, @LastBagTime, @LastTransferOrder,@Batch ,@IsReturn);
+--	INSERT INTO LUPLastBag(MaterialNumber,LastBagTime) VALUES(@MaterialNumber, @LastBagTime);
+	END
+	RETURN
+GO
+
+

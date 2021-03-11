@@ -14,7 +14,7 @@ namespace LUPLoader
         public UPMControl UPM;
         public override string ToString()
         {
-            return "Порт: " + TCPServerPort+"; Путь логов: "+ LogPath+"; SAP: "+SAPHost+"/"+SAPInstance+"/"+SAPInstanceName+"/"+SAPClient+"/"+SAPLogin;
+            return "Порт: " + TCPServerPort + "; Путь логов: " + LogPath + "; SAP: " + SAPHost + "/" + SAPInstance + "/" + SAPInstanceName + "/" + SAPClient + "/" + SAPLogin;
         }
         public int TCPServerPort
         {
@@ -143,6 +143,30 @@ namespace LUPLoader
                 cmbLogLevel.SelectedIndex = value;
             }
         }
+
+        public string BatchNameForLoad
+        {
+            get
+            {
+                return txbBatch.Text;
+            }
+            set
+            {
+                txbBatch.Text = value;
+            }
+        }
+        public string SecondaryBatchNameForLoad
+        {
+            get
+            {
+                return txbSecondaryBatch.Text;
+            }
+            set
+            {
+                txbSecondaryBatch.Text = value;
+            }
+        }
+
         public SettingsForm()
         {
             InitializeComponent();
@@ -155,7 +179,7 @@ namespace LUPLoader
 
         private void button3_Click(object sender, EventArgs e)
         {
-            var pwd=Prompt.ShowDialog("Введите пароль:", "Требуется пароль",true);
+            var pwd = Prompt.ShowDialog("Введите пароль:", "Требуется пароль", true);
             if (pwd == Settings.GetOptionValue<string>(Constants.AdminPassword))
             {
                 if (MessageBox.Show("Склад действительно пустой?", "Предупреждение", MessageBoxButtons.YesNo) == System.Windows.Forms.DialogResult.Yes)
@@ -165,7 +189,7 @@ namespace LUPLoader
             }
         }
 
-        
+
 
         private void checkBox1_Click(object sender, EventArgs e)
         {
@@ -176,7 +200,9 @@ namespace LUPLoader
                 {
                     checkBox1.Checked = true;
                 }
-            }else{
+            }
+            else
+            {
                 checkBox1.Checked = false;
             }
         }
@@ -201,7 +227,7 @@ namespace LUPLoader
             catch (Exception ex)
             {
                 StringBuilder sb = new StringBuilder();
-                Exception ex1=ex;
+                Exception ex1 = ex;
                 do
                 {
                     sb.AppendLine(ex1.Message);
@@ -209,14 +235,14 @@ namespace LUPLoader
                     sb.AppendLine("------------------------------");
                     ex1 = ex1.InnerException;
                 } while (ex1 != null);
-                MessageBox.Show("Ошибка: "+sb.ToString());
+                MessageBox.Show("Ошибка: " + sb.ToString());
             }
         }
 
         private void button5_Click(object sender, EventArgs e)
         {
-            var psw=Prompt.ShowDialog("Введите старый пароль", "Введите пароль", true);
-            var adm_pwd=Settings.GetOptionValue<string>(Constants.AdminPassword);
+            var psw = Prompt.ShowDialog("Введите старый пароль", "Введите пароль", true);
+            var adm_pwd = Settings.GetOptionValue<string>(Constants.AdminPassword);
             if (psw == (adm_pwd ?? ""))
             {
                 string pswn = "", pswr = "";
@@ -297,14 +323,38 @@ namespace LUPLoader
                     }
                 } while (!b);
 
-                Log.Add("Пользователь выполняет сдвиг мешков для материала " + material + " на " + nbags);
-                var LastBag = UPMAction.GetLastBag(material);
+                string batch;
+                batch = Prompt.ShowDialog("Введите партию", "Ввод данных", false);
+                if (String.IsNullOrWhiteSpace(batch)) batch = Settings.GetOptionValue<string>(Constants.BatchName);
+
+                Log.Add("Пользователь выполняет сдвиг мешков для материала " + material + " партии " + batch + " на " + nbags);
+                var batches = SAPConnect.AppData.Instance.GetTable<UPMAction.ZONEBATCH>("ZONEBATCH");
+
+
+                UPMAction.PrepareBagsList(material, batch);
+                var LastBag = UPMAction.GetLastBag(material, batch, false);
+
+                int curindex = -1;
+                var hus = UPMAction.HU_At_UPM_ForMoving(material, batch, LastBag.LastBagDateTime.AddDays(-5), out curindex);
+                var newindex = curindex + nbags;
+
+                if (curindex < 0 || newindex < 0 || newindex >= hus.Count)
+                {
+                    string msg = "";
+                    if (curindex < 0) msg = "На УПМ не хватает мешков. Возможно они давно не завозились";
+                    if (newindex < 0) msg = "Не хватает мешков на УПМ для сдвига. Возможно они давно не завозились";
+                    if (newindex >= hus.Count) msg = "Значение для сдвига слишком большое.";
+                    Log.Add("Ошибка \"" + msg + "\" при сдвиге " + material + " партии " + batch + " на " + nbags);
+                    MessageBox.Show(msg, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 //DateTime newlastbag;
                 //UPMAction.MoveBags(material, nbags, LastBag,out newlastbag);
-                UPMAction.LUPLastBag newlastbag;
+                //UPMAction.LUPLastBag newlastbag;
 
-                UPMAction.MoveBags(LastBag, nbags, out newlastbag);
-                UPMAction.SetLastBag(material, newlastbag.LastBag, newlastbag.LastTransferOrder);
+                //UPMAction.MoveBags(LastBag, nbags, out newlastbag);
+                var newhu = hus[newindex];
+                UPMAction.SetLastBag(material, newhu.DT, newhu.TransferOrderNumber, batch, false);
 
             }
             else
@@ -330,7 +380,7 @@ namespace LUPLoader
                     if (String.IsNullOrWhiteSpace(material)) return;
                     material = material.Trim().TrimStart('0');
                     b = long.TryParse(material, out n);
-                    if (!b || n<=0)
+                    if (!b || n <= 0)
                     {
                         b = false;
                         MessageBox.Show("Материал должен быть целым числом");
@@ -353,7 +403,7 @@ namespace LUPLoader
                     var lups = Prompt.ShowDialog("Введите номер ЛУП", "Ввод данных", false);
                     if (String.IsNullOrWhiteSpace(lups)) return;
                     b = int.TryParse(lups, out lup);
-                    if (!b || lup<0)
+                    if (!b || lup < 0)
                     {
                         b = false;
                         MessageBox.Show("Номер ЛУП должен быть целым числом");
@@ -366,7 +416,7 @@ namespace LUPLoader
                     var bags = Prompt.ShowDialog("Введите количество загружаемых мешков", "Ввод данных", false);
                     if (String.IsNullOrWhiteSpace(bags)) return;
                     b = int.TryParse(bags, out nbags);
-                    if (!b || n<0)
+                    if (!b || n < 0)
                     {
                         MessageBox.Show("Количество мешков должно быть целым числом");
                     }
@@ -392,7 +442,7 @@ namespace LUPLoader
                 MessageBox.Show("Неверный пароль");
                 Log.Add("Введен неверный пароль администратора");
             }
-            
+
 
         }
 
@@ -402,9 +452,121 @@ namespace LUPLoader
             if (gls.ShowDialog() == DialogResult.OK)
             {
                 var granul = gls.SelectedGranulate;
-                var bl = new BagList(granul);
-                bl.Show();
+                var batches = SAPConnect.AppData.Instance.GetTable<UPMAction.ZONEBATCH>("ZONEBATCH");
+                var batchess = batches.Select(b => b.Batch).ToList();
+                var BatchNameForLoad = Settings.GetOptionValue<string>(Constants.BatchName);
+                batchess.Add(BatchNameForLoad);
+                batchess.Distinct();
+                foreach (var batch in batches)
+                {
+                    var bl = new BagList(granul, batch.Batch);
+                    bl.Show();
+                }
             }
+        }
+
+        private void btnSetBatch_Click(object sender, EventArgs e)
+        {
+            var pwd = Prompt.ShowDialog("Введите пароль", "Введите пароль", true);
+            if (pwd == Settings.GetOptionValue<string>(Constants.AdminPassword))
+            {
+                var batch = txbBatch.Text;
+                batch = Prompt.ShowDialog("Введите универсальную партию для загружаемого гранулята:", "Введите партию", false,batch);
+                txbBatch.Text = batch;
+            }
+        }
+
+        private void btnSecondaryBatch_Click(object sender, EventArgs e)
+        {
+            var pwd = Prompt.ShowDialog("Введите пароль", "Введите пароль", true);
+            if (pwd == Settings.GetOptionValue<string>(Constants.AdminPassword))
+            {
+                var sbatch = txbSecondaryBatch.Text;
+                sbatch = Prompt.ShowDialog("Введите вторичную партию для загружаемого гранулята:", "Введите партию", false, sbatch);
+                txbSecondaryBatch.Text = sbatch;
+            }
+        }
+
+        private void btnSecondaryGranulateLoad_Click(object sender, EventArgs e)
+        {
+            if (UPM == null) return;
+            var pwd = Prompt.ShowDialog("Введите пароль для загрузки вторичной партии", "Введите пароль", true);
+            if (pwd == Settings.GetOptionValue<string>(Constants.AdminPassword))
+            {
+                var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
+                long n;
+                bool b = false;
+                string material;
+                do
+                {
+                    material = Prompt.ShowDialog("Введите номер загружаемого материала", "Ввод данных", false);
+                    if (String.IsNullOrWhiteSpace(material)) return;
+                    material = material.Trim().TrimStart('0');
+                    b = long.TryParse(material, out n);
+                    if (!b || n <= 0)
+                    {
+                        b = false;
+                        MessageBox.Show("Материал должен быть целым числом");
+                    }
+
+                    var mn = material.Trim().TrimStart('0').PadLeft(18, '0');
+                    var fg = gran.Find(g => g == mn);
+                    if (fg == null)
+                    {
+                        b = false;
+                        MessageBox.Show("Загружаемый материал не принадлежит группе материалов \"Гранулят\"");
+                    }
+
+                }
+                while (!b);
+
+                int lup = 0;
+                do
+                {
+                    var lups = Prompt.ShowDialog("Введите номер ЛУП", "Ввод данных", false);
+                    if (String.IsNullOrWhiteSpace(lups)) return;
+                    b = int.TryParse(lups, out lup);
+                    if (!b || lup < 0)
+                    {
+                        b = false;
+                        MessageBox.Show("Номер ЛУП должен быть целым числом");
+                    }
+                } while (!b);
+
+                int nbags = 0;
+                do
+                {
+                    var bags = Prompt.ShowDialog("Введите количество загружаемых мешков", "Ввод данных", false);
+                    if (String.IsNullOrWhiteSpace(bags)) return;
+                    b = int.TryParse(bags, out nbags);
+                    if (!b || n < 0)
+                    {
+                        MessageBox.Show("Количество мешков должно быть целым числом");
+                    }
+                } while (!b);
+
+                var command = new UPMCommand();
+                command.NetworkClient = null;
+                command.CommandGotAt = DateTime.Now;
+                var shift = new Shift(DateTime.Now);
+                command.ShiftDate = shift.Date;
+                command.IsNightShift = shift.IsNightShift;
+                command.Command = UPMCommandType.LoadSecondaryBatch;
+                command.LUP = lup;
+                command.BagQuant = nbags;
+                command.Material = material;
+                command.MessageID = 0;
+                command.Batch = Settings.GetOptionValue<string>(Constants.SecondaryBatchName);
+                UPM.DelayedActions.Enqueue(new UPMControl.DelayedCommand(command, ""));
+                Log.Add("Команда \"" + command.ToString() + "\" поставлена в очередь", true, 1);
+
+            }
+            else
+            {
+                MessageBox.Show("Неверный пароль");
+                Log.Add("Введен неверный пароль администратора");
+            }
+
         }
     }
 }

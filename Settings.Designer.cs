@@ -59,13 +59,20 @@
             this.btnBagsShift = new System.Windows.Forms.Button();
             this.GranulateLoadButton = new System.Windows.Forms.Button();
             this.btnBagsList = new System.Windows.Forms.Button();
+            this.txbBatch = new System.Windows.Forms.TextBox();
+            this.btnSetBatch = new System.Windows.Forms.Button();
+            this.label12 = new System.Windows.Forms.Label();
+            this.label13 = new System.Windows.Forms.Label();
+            this.btnSecondaryBatch = new System.Windows.Forms.Button();
+            this.txbSecondaryBatch = new System.Windows.Forms.TextBox();
+            this.btnSecondaryGranulateLoad = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // button1
             // 
             this.button1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.button1.DialogResult = System.Windows.Forms.DialogResult.OK;
-            this.button1.Location = new System.Drawing.Point(12, 439);
+            this.button1.Location = new System.Drawing.Point(12, 554);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 0;
@@ -76,7 +83,7 @@
             // 
             this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.button2.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.button2.Location = new System.Drawing.Point(321, 439);
+            this.button2.Location = new System.Drawing.Point(321, 554);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
             this.button2.TabIndex = 1;
@@ -130,7 +137,7 @@
             this.checkBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.checkBox1.AutoCheck = false;
             this.checkBox1.AutoSize = true;
-            this.checkBox1.Location = new System.Drawing.Point(9, 416);
+            this.checkBox1.Location = new System.Drawing.Point(9, 531);
             this.checkBox1.Name = "checkBox1";
             this.checkBox1.Size = new System.Drawing.Size(105, 17);
             this.checkBox1.TabIndex = 11;
@@ -313,9 +320,9 @@
             // 
             // btnBagsShift
             // 
-            this.btnBagsShift.Location = new System.Drawing.Point(12, 356);
+            this.btnBagsShift.Location = new System.Drawing.Point(237, 356);
             this.btnBagsShift.Name = "btnBagsShift";
-            this.btnBagsShift.Size = new System.Drawing.Size(219, 23);
+            this.btnBagsShift.Size = new System.Drawing.Size(155, 23);
             this.btnBagsShift.TabIndex = 32;
             this.btnBagsShift.Text = "Сдвиг мешков";
             this.btnBagsShift.UseVisualStyleBackColor = true;
@@ -323,17 +330,17 @@
             // 
             // GranulateLoadButton
             // 
-            this.GranulateLoadButton.Location = new System.Drawing.Point(237, 356);
+            this.GranulateLoadButton.Location = new System.Drawing.Point(12, 443);
             this.GranulateLoadButton.Name = "GranulateLoadButton";
-            this.GranulateLoadButton.Size = new System.Drawing.Size(159, 23);
+            this.GranulateLoadButton.Size = new System.Drawing.Size(219, 23);
             this.GranulateLoadButton.TabIndex = 33;
-            this.GranulateLoadButton.Text = "Загрузка гранулята";
+            this.GranulateLoadButton.Text = "Загрузка гранулята основной партии";
             this.GranulateLoadButton.UseVisualStyleBackColor = true;
             this.GranulateLoadButton.Click += new System.EventHandler(this.GranulateLoadButton_Click);
             // 
             // btnBagsList
             // 
-            this.btnBagsList.Location = new System.Drawing.Point(12, 385);
+            this.btnBagsList.Location = new System.Drawing.Point(12, 356);
             this.btnBagsList.Name = "btnBagsList";
             this.btnBagsList.Size = new System.Drawing.Size(219, 23);
             this.btnBagsList.TabIndex = 34;
@@ -341,11 +348,84 @@
             this.btnBagsList.UseVisualStyleBackColor = true;
             this.btnBagsList.Click += new System.EventHandler(this.btnBagsList_Click);
             // 
+            // txbBatch
+            // 
+            this.txbBatch.Enabled = false;
+            this.txbBatch.Location = new System.Drawing.Point(254, 387);
+            this.txbBatch.MaxLength = 10;
+            this.txbBatch.Name = "txbBatch";
+            this.txbBatch.Size = new System.Drawing.Size(138, 20);
+            this.txbBatch.TabIndex = 36;
+            // 
+            // btnSetBatch
+            // 
+            this.btnSetBatch.Location = new System.Drawing.Point(12, 385);
+            this.btnSetBatch.Name = "btnSetBatch";
+            this.btnSetBatch.Size = new System.Drawing.Size(219, 23);
+            this.btnSetBatch.TabIndex = 37;
+            this.btnSetBatch.Text = "Установить основную партию";
+            this.btnSetBatch.UseVisualStyleBackColor = true;
+            this.btnSetBatch.Click += new System.EventHandler(this.btnSetBatch_Click);
+            // 
+            // label12
+            // 
+            this.label12.AutoSize = true;
+            this.label12.Location = new System.Drawing.Point(235, 390);
+            this.label12.Name = "label12";
+            this.label12.Size = new System.Drawing.Size(16, 13);
+            this.label12.TabIndex = 38;
+            this.label12.Text = "->";
+            // 
+            // label13
+            // 
+            this.label13.AutoSize = true;
+            this.label13.Location = new System.Drawing.Point(235, 419);
+            this.label13.Name = "label13";
+            this.label13.Size = new System.Drawing.Size(16, 13);
+            this.label13.TabIndex = 41;
+            this.label13.Text = "->";
+            // 
+            // btnSecondaryBatch
+            // 
+            this.btnSecondaryBatch.Location = new System.Drawing.Point(12, 414);
+            this.btnSecondaryBatch.Name = "btnSecondaryBatch";
+            this.btnSecondaryBatch.Size = new System.Drawing.Size(219, 23);
+            this.btnSecondaryBatch.TabIndex = 40;
+            this.btnSecondaryBatch.Text = "Установить вторичную партию";
+            this.btnSecondaryBatch.UseVisualStyleBackColor = true;
+            this.btnSecondaryBatch.Click += new System.EventHandler(this.btnSecondaryBatch_Click);
+            // 
+            // txbSecondaryBatch
+            // 
+            this.txbSecondaryBatch.Enabled = false;
+            this.txbSecondaryBatch.Location = new System.Drawing.Point(254, 416);
+            this.txbSecondaryBatch.MaxLength = 10;
+            this.txbSecondaryBatch.Name = "txbSecondaryBatch";
+            this.txbSecondaryBatch.Size = new System.Drawing.Size(138, 20);
+            this.txbSecondaryBatch.TabIndex = 39;
+            // 
+            // btnSecondaryGranulateLoad
+            // 
+            this.btnSecondaryGranulateLoad.Location = new System.Drawing.Point(12, 472);
+            this.btnSecondaryGranulateLoad.Name = "btnSecondaryGranulateLoad";
+            this.btnSecondaryGranulateLoad.Size = new System.Drawing.Size(219, 23);
+            this.btnSecondaryGranulateLoad.TabIndex = 42;
+            this.btnSecondaryGranulateLoad.Text = "Загрузка гранулята вторичной партии";
+            this.btnSecondaryGranulateLoad.UseVisualStyleBackColor = true;
+            this.btnSecondaryGranulateLoad.Click += new System.EventHandler(this.btnSecondaryGranulateLoad_Click);
+            // 
             // SettingsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(404, 474);
+            this.ClientSize = new System.Drawing.Size(404, 589);
+            this.Controls.Add(this.btnSecondaryGranulateLoad);
+            this.Controls.Add(this.label13);
+            this.Controls.Add(this.btnSecondaryBatch);
+            this.Controls.Add(this.txbSecondaryBatch);
+            this.Controls.Add(this.label12);
+            this.Controls.Add(this.btnSetBatch);
+            this.Controls.Add(this.txbBatch);
             this.Controls.Add(this.btnBagsList);
             this.Controls.Add(this.GranulateLoadButton);
             this.Controls.Add(this.btnBagsShift);
@@ -417,5 +497,12 @@
         private System.Windows.Forms.Button btnBagsShift;
         private System.Windows.Forms.Button GranulateLoadButton;
         private System.Windows.Forms.Button btnBagsList;
+        private System.Windows.Forms.TextBox txbBatch;
+        private System.Windows.Forms.Button btnSetBatch;
+        private System.Windows.Forms.Label label12;
+        private System.Windows.Forms.Label label13;
+        private System.Windows.Forms.Button btnSecondaryBatch;
+        private System.Windows.Forms.TextBox txbSecondaryBatch;
+        private System.Windows.Forms.Button btnSecondaryGranulateLoad;
     }
 }

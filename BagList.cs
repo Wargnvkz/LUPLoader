@@ -12,19 +12,25 @@ namespace LUPLoader
     public partial class BagList : Form
     {
         string Granulate;
-        public BagList(string granulate)
+        string Batch;
+        public BagList(string granulate,string batch)
         {
             Granulate = granulate;
+            Batch = batch;
+            
             InitializeComponent();
             ShowList();
+            Text = "Гранулят: " + granulate + " Партия: " + batch;
         }
 
         private void ShowList()
         {
             if (String.IsNullOrWhiteSpace(Granulate)) return;
-            var LastBag = UPMAction.GetLastBag(Granulate);
-            var lb = new LUPLoader.LastBag() { LastBagDateTime = LastBag.LastBag, TransferOrder = LastBag.LastTransferOrder };
-            var lst=UPMAction.HU_At_UPM(Granulate, lb);
+
+            UPMAction.PrepareBagsList(Granulate, Batch);
+
+            var LastBag = UPMAction.GetLastBag(Granulate,Batch,false);
+            var lst=UPMAction.HU_At_UPM_ForLoad(Granulate, Batch);
             listView1.Items.Clear();
             int n = 0;
             lst.ForEach(hu => 

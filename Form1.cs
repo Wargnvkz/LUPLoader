@@ -248,6 +248,8 @@ namespace LUPLoader
             sf.SAPPassword = Settings.GetOptionValue<string>(Constants.SAPPassword);
             sf.DelayedTimeout = Settings.GetOptionValue<int>(Constants.DelayedTimeout);
             sf.LogLevel= Settings.GetOptionValue<int>(Constants.LogLevel);
+            sf.BatchNameForLoad= Settings.GetOptionValue<string>(Constants.BatchName);
+            sf.SecondaryBatchNameForLoad = Settings.GetOptionValue<string>(Constants.SecondaryBatchName);
 
 
             Log.Add("Значения настроек: "+sf.ToString());
@@ -266,6 +268,8 @@ namespace LUPLoader
                 Settings.SetOptionValue(Constants.SAPPassword, sf.SAPPassword);
                 Settings.SetOptionValue(Constants.DelayedTimeout, sf.DelayedTimeout.ToString());
                 Settings.SetOptionValue(Constants.LogLevel, sf.LogLevel.ToString());
+                Settings.SetOptionValue(Constants.BatchName, sf.BatchNameForLoad);
+                Settings.SetOptionValue(Constants.SecondaryBatchName, sf.SecondaryBatchNameForLoad);
 
                 SAPConnect.AppData.ResetInstance();
                 //ConnectToSAP();
