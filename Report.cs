@@ -319,7 +319,7 @@ namespace LUPLoader
                             cmd.Parameters.Add("@CorrectionText", corr.CorrectionText);
                             cmd.ExecuteNonQuery();
                             Log.Add(
-                                String.Format("Смена: {0}{1}, Материал: {2}, Вес мешка: {3}, На начало: {4} Приход: {5} Расход: {6} Конец: {7} Поправка: {8} Текст поправки: {9}", shift, IsNight ? "Н" : "Д", corr.Material, corr.BagWeight, corr.Income, corr.AtShiftStart, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, corr.CorrectionText)
+                                String.Format("Смена: {0}{1}, Материал: {2}, Вес мешка: {3}, На начало: {4} Приход: {5} Расход: {6} Конец: {7} Поправка: {8} Текст поправки: {9}", shift, IsNight ? "Н" : "Д", corr.Material, corr.BagWeight, corr.AtShiftStart, corr.Income,  corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, corr.CorrectionText)
                                 , true, 0); 
                         }
 
