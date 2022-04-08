@@ -1541,10 +1541,17 @@ namespace LUPLoader
                         incomefiltered.RemoveAt(0);
                 }
             }
-
-            var hu = incomefiltered[0];
-            index = income.IndexOf(hu);
-            return income;
+            if (incomefiltered.Count > 0)
+            {
+                var hu = incomefiltered[0];
+                index = income.IndexOf(hu);
+                return income;
+            }
+            else
+            {
+                index = 0;
+                return new List<HU>();
+            }
         }
         private static void LoadGranulates()
         {
