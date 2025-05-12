@@ -41,7 +41,7 @@ namespace LUPLoader
         List<byte> Buffer = new List<byte>();
         string error;
         public ControllerDeviceClient(TCPConnectionSettings settings)
-            : base(settings)
+            : base(settings, Log.CreateTextWriter())
         {
             ReadEvent += REvent;
             WriteEvent += WEvent;
@@ -104,8 +104,8 @@ namespace LUPLoader
             }
         }
     }
-    
-    public class ControllerDeviceServer : IODevice<TCPConnectionSettings>,IDisposable
+
+    public class ControllerDeviceServer : IODevice<TCPConnectionSettings>, IDisposable
     {
         TCPServer Server;
         TCPConnectionSettings Settings;
@@ -126,38 +126,45 @@ namespace LUPLoader
         }
 
         public ControllerDeviceServer(TCPConnectionSettings settings)
-            : base(settings)
+            : base(settings, Log.CreateTextWriter())
         {
             Settings = settings;
         }
-        protected override void WriteToDevice(List<byte> data=null)
+        protected override void WriteToDevice(List<byte> data = null)
         {
-            
+
         }
 
-        
+
         protected override void ReadFromDevice()
         {
             lock (_lockClients)
             {
-                RemoveDisconnectedClients();
-                foreach (var client in Clients)
+                try
                 {
-                    if (client != null && client.Connection.Connected)
+                    RemoveDisconnectedClients();
+                    foreach (var client in Clients)
                     {
-                        List<byte> dt = new List<byte>();
-                        byte[] buf = new byte[2048];
-                        var ns = client.Connection.GetStream();
-                        while (ns.DataAvailable)
+                        if (client != null && client.Connection.Connected)
                         {
-                            var sz = ns.Read(buf, 0, 2048);
-                            dt.AddRange(buf.Take(sz));
-                        }
-                        client.AddData(dt);
-                        if (dt.Count!=0)
-                            Log.Add("Получено от клиента " + client.Connection.Client.RemoteEndPoint.ToString() + ": <"+Log.ByteArrayToHexString(dt.ToArray())+">",true,2);
+                            List<byte> dt = new List<byte>();
+                            byte[] buf = new byte[2048];
+                            var ns = client.Connection.GetStream();
+                            while (ns.DataAvailable)
+                            {
+                                var sz = ns.Read(buf, 0, 2048);
+                                dt.AddRange(buf.Take(sz));
+                            }
+                            client.AddData(dt);
+                            if (dt.Count != 0)
+                                Log.Add("Получено от клиента " + client.Connection.Client.RemoteEndPoint.ToString() + ": <" + Log.ByteArrayToHexString(dt.ToArray()) + ">", true, 2);
 
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    Log.Add(ex);
                 }
             }
         }
@@ -165,7 +172,7 @@ namespace LUPLoader
 
         protected override void DeviceSetup(TCPConnectionSettings settings)
         {
-            Server = new TCPServer(settings);
+            Server = new TCPServer(settings, Log.CreateTextWriter());
             Server.ConnectionEstablishedEvent += TCPClientConnected;
         }
 
@@ -185,7 +192,7 @@ namespace LUPLoader
             client.ReceiveTimeout = Settings.Timeout;
             client.SendTimeout = Settings.Timeout;
             AddClient(tc);
-            Log.Add("Подключился клиент "+client.Client.RemoteEndPoint.ToString(),true,0);
+            Log.Add("Подключился клиент " + client.Client.RemoteEndPoint.ToString(), true, 0);
         }
 
         public override void Dispose()
@@ -214,7 +221,7 @@ namespace LUPLoader
 
     }
 
-    public class TCPServer:IDisposable
+    public class TCPServer : IDisposable
     {
         TcpListener Server;
         Thread TCPServerThread;
@@ -222,9 +229,11 @@ namespace LUPLoader
         public delegate void ConnectionEstablished(TcpClient client);
         public event ConnectionEstablished ConnectionEstablishedEvent;
         private bool ThreadWorking = true;
+        private TextWriter LogWriter;
 
-        public TCPServer(TCPConnectionSettings settings)
+        public TCPServer(TCPConnectionSettings settings, TextWriter log)
         {
+            LogWriter = log;
             Server = new TcpListener(settings.Address, settings.Port);
             TCPServerThread = new Thread(TCPServerProc);
         }
@@ -233,18 +242,25 @@ namespace LUPLoader
         {
             while (ThreadWorking)
             {
-                if (Server.Pending())
+                try
                 {
-                    var TcpClient = Server.AcceptTcpClient();
-                    Clients.Add(TcpClient);
-                    var cee = ConnectionEstablishedEvent;
-                    if (cee!= null)
+                    if (Server.Pending())
                     {
-                        cee(TcpClient);
+                        var TcpClient = Server.AcceptTcpClient();
+                        Clients.Add(TcpClient);
+                        var cee = ConnectionEstablishedEvent;
+                        if (cee != null)
+                        {
+                            cee(TcpClient);
+                        }
                     }
+                    Clients.RemoveAll(c => !c.Connected);
+                    Thread.Sleep(1);
                 }
-                Clients.RemoveAll(c => !c.Connected);
-                Thread.Sleep(1);
+                catch (Exception ex)
+                {
+                    LogWriter.Write(ex);
+                }
             }
         }
 
@@ -252,12 +268,23 @@ namespace LUPLoader
         {
             if (TCPServerThread != null)
             {
-                if (TCPServerThread.ThreadState == ThreadState.WaitSleepJoin)
-                    TCPServerThread.Interrupt();
-                else if (TCPServerThread.ThreadState == ThreadState.Running)
-                    TCPServerThread.Abort();
+                try
+                {
+                    if (TCPServerThread.ThreadState == ThreadState.WaitSleepJoin)
+                        TCPServerThread.Interrupt();
+                    else if (TCPServerThread.ThreadState == ThreadState.Running)
+                        TCPServerThread.Abort();
+                }
+                catch { }
             }
-            Server.Stop();
+            try
+            {
+                Server.Stop();
+            }
+            catch (Exception ex)
+            {
+                //LogWriter.Write(ex);
+            }
         }
 
         public void Start()
@@ -276,7 +303,7 @@ namespace LUPLoader
     public class TCPConnectedClient
     {
         public TcpClient Connection;
-        public List<byte> Buffer=new List<byte>();
+        public List<byte> Buffer = new List<byte>();
         public List<UPMCommand> Commands = new List<UPMCommand>();
         protected object _lock = new object();
         protected object _lockCmd = new object();
@@ -339,7 +366,7 @@ namespace LUPLoader
 
     public class UPMData
     {
-        
+
         /*public MachineStatus[] MachineStatuses;
         public double[] LUPWeights;
         public SAPConnectionStatus SAPStatus;
@@ -364,7 +391,7 @@ namespace LUPLoader
         [DataMember]
         public UPMCommandType Command;
         [DataMember]
-        public int[] LUPWeight=new int[2];
+        public int[] LUPWeight = new int[2];
         [DataMember]
         public int LUP;
         [DataMember]
@@ -382,29 +409,35 @@ namespace LUPLoader
         [DataMember]
         public DateTime CommandGotAt;
         [DataMember]
-        public DateTime ShiftDate=new DateTime(2000,1,1);
+        public DateTime ShiftDate = new DateTime(2000, 1, 1);
         [DataMember]
-        public bool IsNightShift=false;
+        public bool IsNightShift = false;
         [DataMember]
         public List<Correction> Corrections;
         public override string ToString()
         {
-            switch(Command){
+            switch (Command)
+            {
                 case UPMCommandType.LUPWeight:
                     return String.Format("Вес в LUP: ID:{2} LUP1:{0}, LUP2:{1}", LUPWeight[0], LUPWeight[1], MessageID);
                 case UPMCommandType.MachineStatus:
-                    return String.Format("Статус линии: ID:{3}, PL:{0}, LUP:{1}, Линия:{2}", PL, LUP, (Status==2?"LUP3":(PLLineWork?"Работает":"Остановлена")),MessageID);
+                    string statusText;
+                    if (Status == 1)
+                        statusText = PLLineWork ? "Работает" : "Остановлена";
+                    else
+                        statusText = $"LUP{Status + 1}";
+                    return String.Format("Статус линии: ID:{3}, PL:{0}, LUP:{1}, Линия:{2}", PL, LUP, statusText, MessageID);
                 case UPMCommandType.GranulateLoad:
-                    return String.Format("Загрузка гранулята: ID:{3}, LUP:{0}, Материал:{1}, Мешков:{2}", LUP, Material,BagQuant,MessageID);
+                    return String.Format("Загрузка гранулята: ID:{3}, LUP:{0}, Материал:{1}, Мешков:{2}", LUP, Material, BagQuant, MessageID);
                 case UPMCommandType.UPMIncome:
-                    return String.Format("Запрос прихода гранулята на УПМ: ID:{0}, Смена:{1}",MessageID,ShiftDate.ToShortDateString()+(IsNightShift?"Н":"Д"));
+                    return String.Format("Запрос прихода гранулята на УПМ: ID:{0}, Смена:{1}", MessageID, ShiftDate.ToShortDateString() + (IsNightShift ? "Н" : "Д"));
                 case UPMCommandType.EndShiftBagsCorrection:
                     {
                         StringBuilder sb = new StringBuilder();
                         sb.AppendLine("Данные о поправках мешков на УПМ:");
                         foreach (var corr in Corrections)
                         {
-                            sb.AppendLine(String.Format("(Материал: {0} Упаковка: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material,corr.BagWeight,corr.AtShiftStart, corr.Income, corr.Outgo, corr.AtShiftEnd,corr.CorrectionValue,String.IsNullOrWhiteSpace(corr.CorrectionText)?"":"("+corr.CorrectionText+")"));
+                            sb.AppendLine(String.Format("(Материал: {0} Упаковка: {1} На начало: {2} Приход: {3} Расход: {4} На конец: {5} Поправка: {6}{7})", corr.Material, corr.BagWeight, corr.AtShiftStart, corr.Income, corr.Outgo, corr.AtShiftEnd, corr.CorrectionValue, String.IsNullOrWhiteSpace(corr.CorrectionText) ? "" : "(" + corr.CorrectionText + ")"));
                         }
                         return sb.ToString();
                     }
@@ -425,8 +458,8 @@ namespace LUPLoader
 
         public byte[] ResponseOK()
         {
-            var resp = new byte[3]{0xff,0,0};
-            resp[1]=MessageID;
+            var resp = new byte[3] { 0xff, 0, 0 };
+            resp[1] = MessageID;
             return resp;
         }
         public byte[] ResponseErr()
@@ -439,7 +472,7 @@ namespace LUPLoader
         {
             var resp = new byte[2] { 0xff, 0 };
             resp[1] = MessageID;
-            resp=resp.Concat(data).ToArray();
+            resp = resp.Concat(data).ToArray();
             return resp;
         }
     }
@@ -526,7 +559,7 @@ namespace LUPLoader
         public DiskQueue<DelayedCommand> DelayedActions = new DiskQueue<DelayedCommand>("DelayedActions");
         public DateTime DelayedActionsLastChange = DateTime.MinValue;
 
-        public UPMControl(TCPConnectionSettings connectionSettings)
+        public UPMControl(TCPConnectionSettings connectionSettings) : base(Log.CreateTextWriter())
         {
             ConnectionSettings = connectionSettings;
             tcpserver = new ControllerDeviceServer(connectionSettings);
@@ -536,52 +569,65 @@ namespace LUPLoader
         protected override void ReadData(ref UPMData data)
         {
             UPMCommand cmd;
-
-            foreach (var client in tcpserver.Clients)
+            try
             {
-                var ns = client.Connection.GetStream();
-                while (UPMParseCommand(client, out cmd))
+                foreach (var client in tcpserver.Clients)
                 {
-                    Log.Add("Получена команда \"" + cmd.ToString() + "\" от клиента " + client.Connection.Client.RemoteEndPoint.ToString(), true, 1);
-                    client.AddCommand(cmd);
-                    //var resp = cmd.ResponseOK();
-                    //ns.Write(resp, 0, resp.Length);
-                    //Log.Add("Ответ клиенту " + client.Connection.Client.RemoteEndPoint.ToString() + ": <" + Log.ByteArrayToHexString(resp) + "> - \"OK\"", true, 2);
-                    //Log.Add("Respond OK sent to client at " + client.Connection.Client.RemoteEndPoint.ToString());
-                    Report.AddCommand(cmd);
                     try
                     {
-                        if (DelayedActions.Count == 0 || cmd.Command != UPMCommandType.GranulateLoad)
+                        //var ns = client.Connection.GetStream();
+                        while (UPMParseCommand(client, out cmd))
                         {
-                            if (!UPMAction.ProcessCommand(ref cmd))
+                            Log.Add("Получена команда \"" + cmd.ToString() + "\" от клиента " + client.Connection.Client.RemoteEndPoint.ToString(), true, 1);
+                            client.AddCommand(cmd);
+                            //var resp = cmd.ResponseOK();
+                            //ns.Write(resp, 0, resp.Length);
+                            //Log.Add("Ответ клиенту " + client.Connection.Client.RemoteEndPoint.ToString() + ": <" + Log.ByteArrayToHexString(resp) + "> - \"OK\"", true, 2);
+                            //Log.Add("Respond OK sent to client at " + client.Connection.Client.RemoteEndPoint.ToString());
+                            Report.AddCommand(cmd);
+                            try
                             {
-                                DelayedActions.Enqueue(new DelayedCommand(cmd, ""));
-                                DelayedActionsLastChange = DateTime.Now;
-                                Log.Add("Команда \"" + cmd.ToString() + "\" не может быть выполнена и была отложена", true, 0);
+                                if (DelayedActions.Count == 0 || cmd.Command != UPMCommandType.GranulateLoad)
+                                {
+                                    if (!UPMAction.ProcessCommand(ref cmd))
+                                    {
+                                        DelayedActions.Enqueue(new DelayedCommand(cmd, ""));
+                                        DelayedActionsLastChange = DateTime.Now;
+                                        Log.Add("Команда \"" + cmd.ToString() + "\" не может быть выполнена и была отложена", true, 0);
+                                    }
+                                }
+                                else
+                                {
+                                    DelayedActions.Enqueue(new DelayedCommand(cmd, ""));
+                                    DelayedActionsLastChange = DateTime.Now;
+                                    Log.Add("Команда \"" + cmd.ToString() + "\" была поставлена в очередь до выполнения предыдущей команды", true, 0);
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                try
+                                {
+                                    DelayedActions.Enqueue(new DelayedCommand(cmd, ex));
+                                    DelayedActionsLastChange = DateTime.Now;
+                                    if (ex is UPMException)
+                                    {
+                                        Log.Add("Команда \"" + cmd.ToString() + "\" была отложена с сообщением \"" + ex.Message + "\"", true, 0);
+                                    }
+                                    else
+                                    {
+                                        Log.Add("При выполнении команды \"" + cmd.ToString() + "\" возникло исключение " + ex.Message + " " + ex.StackTrace, true, 0);
+                                    }
+                                }
+                                catch { Log.Add(ex); }
                             }
                         }
-                        else
-                        {
-                            DelayedActions.Enqueue(new DelayedCommand(cmd, ""));
-                            DelayedActionsLastChange = DateTime.Now;
-                            Log.Add("Команда \"" + cmd.ToString() + "\" была поставлена в очередь до выполнения предыдущей команды", true, 0);
-                        }
                     }
-                    catch (Exception ex)
-                    {
-                        DelayedActions.Enqueue(new DelayedCommand(cmd, ex));
-                        DelayedActionsLastChange = DateTime.Now;
-                        if (ex is UPMException)
-                        {
-                            Log.Add("Команда \"" + cmd.ToString() + "\" была отложена с сообщением \"" + ex.Message + "\"", true, 0);
-                        }
-                        else
-                        {
-                            Log.Add("При выполнении команды \"" + cmd.ToString() + "\" возникло исключение " + ex.Message + " " + ex.StackTrace, true, 0);
-                        }
-                    }
+                    catch (Exception ex) { Log.Add(ex); }
                 }
-
+            }
+            catch (Exception ex)
+            {
+                Log.Add(ex);
             }
         }
 
@@ -633,28 +679,32 @@ namespace LUPLoader
                 }
                 catch (Exception ex)
                 {
-                    cmd_str.ErrorMessage = ex.Message;
-                    cmd_str.StackTrace = ex.StackTrace;
-                    if (ex is UPMException)
+                    try
                     {
-                        cmd_str.IsUPMException = true;
-                        cmd_str.MessageType = (ex as UPMException).UPMMessage;
+                        cmd_str.ErrorMessage = ex.Message;
+                        cmd_str.StackTrace = ex.StackTrace;
+                        if (ex is UPMException)
+                        {
+                            cmd_str.IsUPMException = true;
+                            cmd_str.MessageType = (ex as UPMException).UPMMessage;
+                        }
+                        // Либо добиваем первую команду и тормозим остальные, пока не выполнится
+                        //DelayedActions.ReplaceFirst(cmd_str);
+                        //либо убираем не получившуюся из начала и ставим в конец
+                        DelayedCommand cmd_str1;
+                        DelayedActions.TryDequeue(out cmd_str1);
+                        cmd_str.LastTry = DateTime.Now;
+                        DelayedActions.Enqueue(cmd_str);
+                        if (ex is UPMException)
+                        {
+                            Log.Add("Команда \"" + cmd_str.Command.ToString() + "\" была отложена с сообщением \"" + ex.Message + "\"", true, 0);
+                        }
+                        else
+                        {
+                            Log.Add("При выполнении команды \"" + cmd_str.Command.ToString() + "\" возникло исключение " + ex.Message + " " + ex.StackTrace, true, 0);
+                        }
                     }
-                    // Либо добиваем первую команду и тормозим остальные, пока не выполнится
-                    //DelayedActions.ReplaceFirst(cmd_str);
-                    //либо убираем не получившуюся из начала и ставим в конец
-                    DelayedCommand cmd_str1;
-                    DelayedActions.TryDequeue(out cmd_str1);
-                    cmd_str.LastTry = DateTime.Now;
-                    DelayedActions.Enqueue(cmd_str);
-                    if (ex is UPMException)
-                    {
-                        Log.Add("Команда \"" + cmd_str.Command.ToString() + "\" была отложена с сообщением \"" + ex.Message + "\"", true, 0);
-                    }
-                    else
-                    {
-                        Log.Add("При выполнении команды \"" + cmd_str.Command.ToString() + "\" возникло исключение " + ex.Message + " " + ex.StackTrace, true, 0);
-                    }
+                    catch { }
                 }
 
             }
@@ -829,7 +879,7 @@ namespace LUPLoader
                                 var materialNumber = Encoding.ASCII.GetString(material);*/
                                 HasResult = true;
                                 command.Command = UPMCommandType.UPMIncome;
-                                command.ShiftDate = new DateTime(year+2000, month, day);
+                                command.ShiftDate = new DateTime(year + 2000, month, day);
                                 command.IsNightShift = shift == 1;
                                 command.MessageID = MsgID;
 
@@ -854,7 +904,7 @@ namespace LUPLoader
                                 var materialNumber = Encoding.ASCII.GetString(material);*/
                                 HasResult = true;
                                 command.Command = UPMCommandType.EndShiftBagsCorrection;
-                                command.ShiftDate = new DateTime(year+2000, month, day);
+                                command.ShiftDate = new DateTime(year + 2000, month, day);
                                 command.IsNightShift = shift == 1;
                                 command.MessageID = MsgID;
 
@@ -879,7 +929,7 @@ namespace LUPLoader
                                     corr.Outgo = BitConverter.ToInt16(arr, StartI + DataOffset + 14);
                                     corr.AtShiftEnd = BitConverter.ToInt16(arr, StartI + DataOffset + 16);
                                     //corr.BagQuantity = data[StartI + DataOffset + 13] + 256 * data[StartI + DataOffset + 14];
-                                    
+
                                     corr.CorrectionValue = BitConverter.ToInt16(arr, StartI + DataOffset + 18);
                                     //corr.CorrectionData = (short)((UInt16)data[StartI + DataOffset + 15] | ((UInt16)data[StartI + DataOffset + 16]) << 8);
                                     var textlength = data[StartI + DataOffset + 20];
@@ -887,7 +937,7 @@ namespace LUPLoader
                                     corr.CorrectionText = Encoding.GetEncoding(1251).GetString(btext);
                                     command.Corrections.Add(corr);
                                     DataOffset += 21 + textlength;
-                                } while (data.Count>StartI+DataOffset+1 && data[StartI+DataOffset]!=0xff);
+                                } while (data.Count > StartI + DataOffset + 1 && data[StartI + DataOffset] != 0xff);
                                 MsgLength = DataOffset;
                             }
                             else
@@ -963,12 +1013,13 @@ namespace LUPLoader
             }
             catch (Exception ex)
             {
-                var StartINext = data.IndexOf(0xff, StartI+1);
+                var StartINext = data.IndexOf(0xff, StartI + 1);
                 if (StartINext > 0)
                 {
                     client.TakeData(StartINext - 1);
                 }
-                command = null; 
+                command = null;
+                Log.Add(ex);
                 return false;
             }
         }
@@ -989,7 +1040,7 @@ namespace LUPLoader
             //Material = "1000000012"
             //var lastbag = LastBag;// new DateTime(2018, 12, 06);
             newLastBag = new LUPLastBag(LastBag);
-            var a = HU_At_UPM(Material, LastBag.LastBag, LastBag.LastTransferOrder );
+            var a = HU_At_UPM(Material, LastBag.LastBag, LastBag.LastTransferOrder);
             if (a.Count >= BagQuant)
             {
                 Dictionary<string, double> BatchQauntity = new Dictionary<string, double>();
@@ -1008,9 +1059,9 @@ namespace LUPLoader
 
                 foreach (var bq in BatchQauntity)
                 {
-                    var batchMaterial = Storage.Find(s => s.Batch == bq.Key && s.Material.Trim().TrimStart('0')==Material);
-                    if (batchMaterial == null) throw new UPMException("Партии "+bq.Key+" материала "+Material+" нет на складе УПМ",UPMExceptionMessage.NoGranulate);
-                    if (batchMaterial.Available < bq.Value) throw new UPMException("Партии " + bq.Key + " материала " + Material + " недостаточно на складе УПМ",UPMExceptionMessage.NoEnoughGranulate);
+                    var batchMaterial = Storage.Find(s => s.Batch == bq.Key && s.Material.Trim().TrimStart('0') == Material);
+                    if (batchMaterial == null) throw new UPMException("Партии " + bq.Key + " материала " + Material + " нет на складе УПМ", UPMExceptionMessage.NoGranulate);
+                    if (batchMaterial.Available < bq.Value) throw new UPMException("Партии " + bq.Key + " материала " + Material + " недостаточно на складе УПМ", UPMExceptionMessage.NoEnoughGranulate);
                 }
 
                 //var lastForLoad = for_load.Last();
@@ -1020,18 +1071,19 @@ namespace LUPLoader
                 int loadedBags = 0;
                 foreach (var l in for_load)
                 {
-                    double BagWeight=0;
-                    var hu=l.SU.Trim().TrimStart('0');
-                    var innum=SAPConnect.AppData.Instance.GetTable<HUNUM>("VEKP","EXIDV = '"+hu.PadLeft(20,'0')+"'");
-                    if (innum.Count>0){
+                    double BagWeight = 0;
+                    var hu = l.SU.Trim().TrimStart('0');
+                    var innum = SAPConnect.AppData.Instance.GetTable<HUNUM>("VEKP", "EXIDV = '" + hu.PadLeft(20, '0') + "'");
+                    if (innum.Count > 0)
+                    {
                         var num = innum[0].InnerNumber;
-                        var mat = SAPConnect.AppData.Instance.GetTable<HUMAT>("VEPO", "VENUM = '" + num+"'" );
+                        var mat = SAPConnect.AppData.Instance.GetTable<HUMAT>("VEPO", "VENUM = '" + num + "'");
                         if (mat.Count > 0)
                         {
                             BagWeight = mat[0].Quantity;
                         }
                     }
-                    var res=SAPConnect.AppData.Instance.ZMOVE(l.SU, "LUP" + LUP.ToString());
+                    var res = SAPConnect.AppData.Instance.ZMOVE(l.SU, "LUP" + LUP.ToString());
                     if (res[0].Error)
                     {
                         throw new LoadBagException("SAP: " + res[0].Message, loadedBags, newLastBag.LastBag, newLastBag.LastTransferOrder);
@@ -1040,6 +1092,7 @@ namespace LUPLoader
                     newLastBag = new LUPLastBag() { Material = Material, LastBag = l.DT, LastTransferOrder = l.TransferOrderNumber };
                     loadedBags++;
                     Log.Add("Мешок " + l.SU + " был загружен в LUP" + LUP.ToString(), true, 0);
+                    Log.Add("ТЗ мешка " + l.SU + ": Материал: "+ newLastBag.Material+", Время мешка: "+ newLastBag.LastBag.ToString("dd-MM-yyyy HH\\:mm\\:ss")+", номер ТЗ: "+newLastBag.LastTransferOrder, true, 0);
                 }
                 return true;
             }
@@ -1132,14 +1185,29 @@ namespace LUPLoader
 
             var to_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(NLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             to_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
-            to_upm = to_upm.FindAll(h => h.DT >= fromdate);
+            to_upm = to_upm.FindAll(h => h.DT >= fromdate).OrderBy(h => h.DT).ToList();
 
             var from_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(VLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             from_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
             from_upm = from_upm.FindAll(h => h.DT > fromdate);
 
-            var fu_hu_num = from_upm.Select(n => n.SU).ToList();
-            var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
+            //var fu_hu_num = from_upm.Select(n => n.SU).ToList();
+            //var Got_HU_to_UPM = to_upm.FindAll(n => !fu_hu_num.Contains(n.SU)).OrderBy(g => g.DT).ToList();
+            List<HU> Got_HU_to_UPM = new List<HU>();
+            for (int i = 0; i < to_upm.Count; i++)
+            {
+                var deliveredHU = to_upm[i];
+                var foundGotRidOf = from_upm.FindAll(fuh => fuh.SU == deliveredHU.SU);
+                if (foundGotRidOf.Count > 0)
+                {
+                    var LatestTimeAway = foundGotRidOf.Max(e => e.DT);
+                    if (deliveredHU.DT > LatestTimeAway) Got_HU_to_UPM.Add(deliveredHU);
+                }
+                else
+                {
+                    Got_HU_to_UPM.Add(deliveredHU);
+                }
+            }
 
             var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
             if (index < 0) index = 0;
@@ -1185,7 +1253,7 @@ namespace LUPLoader
             var to_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(NLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             to_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
             to_upm = to_upm.OrderBy(b => b.DT).ThenBy(b1 => b1.TransferOrderNumber).ToList();
-            to_upm = to_upm.FindAll(h => (h.DT >= fromdate) );
+            to_upm = to_upm.FindAll(h => (h.DT >= fromdate));
 
             var from_upm = SAPConnect.AppData.Instance.GetTable<HU>("LTAP", -1, "(VLTYP = '921' AND VBELN <> '' AND (QDATU >= '" + fromdate.ToString("yyyyMMdd") + "') AND LETYP = 'BAG') AND MATNR = '" + mn + "'");
             from_upm.RemoveAll(t => !gran.Contains(t.MaterialNumber));
@@ -1197,7 +1265,7 @@ namespace LUPLoader
 
             var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == lastbag.TransferOrder);
             if (index < 0) index = 0;
-            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index+1).ToList();
+            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index + 1).ToList();
 
             return Got_HU_to_UPM;
         }
@@ -1220,7 +1288,7 @@ namespace LUPLoader
             var lastbagq = lastbag;
             newLastBag = LastBag;
             if (BagQuant <= 0)
-                lastbagq=lastbagq.AddDays(-5);
+                lastbagq = lastbagq.AddDays(-5);
             var a = HU_At_UPM_MoveBags(LastBag.Material, lastbagq);
             var index = 0;
             for (index = 0; index < a.Count; index++)
@@ -1237,11 +1305,11 @@ namespace LUPLoader
             {
                 newLastBag = new LUPLastBag();
                 newLastBag.Material = LastBag.Material;
-                newLastBag.LastBag=a[newind].DT;
+                newLastBag.LastBag = a[newind].DT;
                 newLastBag.LastTransferOrder = a[newind].TransferOrderNumber;
                 return true;
             }
-            
+
         }
 
         // PL: PL01 - PL12 (БМ01-БМ12 для EEQ)
@@ -1373,9 +1441,9 @@ namespace LUPLoader
             Thread.CurrentThread.CurrentUICulture = new
                 CultureInfo(selectedLanguage);
 
-            DateTime LastBag=DateTime.MinValue;
-            LUPLastBag result=new LUPLastBag();
-            result.Material=Material;
+            DateTime LastBag = DateTime.MinValue;
+            LUPLastBag result = new LUPLastBag();
+            result.Material = Material;
             try
             {
                 var cs = ConfigurationManager.ConnectionStrings["UPMConnectionString"].ConnectionString;
@@ -1391,15 +1459,15 @@ namespace LUPLoader
                     {
                         if (dr.Read())
                         {
-                            
-                            result.LastBag=!dr.IsDBNull(0)?dr.GetDateTime(0):new DateTime(2000,1,1,0,0,0);
-                            result.LastTransferOrder=!dr.IsDBNull(1)?dr.GetInt64(1):9999999999L;
 
-                           /* SQLInventory smi = new SQLInventory();
-                            smi.InvID = dr.GetInt32(0);
-                            smi.Date = dr.GetDateTime(1);
-                            smi.Night = dr.GetBoolean(2);
-                            lsd.Add(smi);*/
+                            result.LastBag = !dr.IsDBNull(0) ? dr.GetDateTime(0) : new DateTime(2000, 1, 1, 0, 0, 0);
+                            result.LastTransferOrder = !dr.IsDBNull(1) ? dr.GetInt64(1) : 9999999999L;
+
+                            /* SQLInventory smi = new SQLInventory();
+                             smi.InvID = dr.GetInt32(0);
+                             smi.Date = dr.GetDateTime(1);
+                             smi.Night = dr.GetBoolean(2);
+                             lsd.Add(smi);*/
                         }
                     }
                 }
@@ -1411,7 +1479,7 @@ namespace LUPLoader
                 //return DateTime.MinValue;
             }
         }
-        public static void SetLastBag(string Material,DateTime LastBag, long LastTransferOrder)
+        public static void SetLastBag(string Material, DateTime LastBag, long LastTransferOrder)
         {
             var selectedLanguage = "ru-RU";
             Thread.CurrentThread.CurrentCulture =
@@ -1431,7 +1499,7 @@ namespace LUPLoader
                     cmd.Parameters.AddWithValue("@LastBagTime", LastBag);
                     cmd.Parameters.AddWithValue("@LastTransferOrder", LastTransferOrder);
                     cmd.ExecuteNonQuery();
-                    Log.Add("Время следующего мешка для материала " + Material + " установлено в " + LastBag.ToString("dd-MM-yyyy hh\\:mm\\:ss"), true,0);
+                    Log.Add("Время последнего мешка для материала " + Material + " установлено в " + LastBag.ToString("dd-MM-yyyy HH\\:mm\\:ss"), true, 0);
                 }
             }
             catch (Exception ex)
@@ -1460,7 +1528,7 @@ namespace LUPLoader
                     cmd.ExecuteNonQuery();
                 }
                 LUPWeight[0] = LUPWeight1;
-                LUPWeight[1]=LUPWeight2;
+                LUPWeight[1] = LUPWeight2;
             }
             catch (Exception ex)
             {
@@ -1498,7 +1566,7 @@ namespace LUPLoader
 
         public static bool ProcessCommand(ref UPMCommand cmd)
         {
-            Log.Add("Выполняется команда \"" + cmd.ToString() + "\"", true,0);
+            Log.Add("Выполняется команда \"" + cmd.ToString() + "\"", true, 0);
             switch (cmd.Command)
             {
                 case UPMCommandType.LUPWeight:
@@ -1525,29 +1593,29 @@ namespace LUPLoader
                     break;
                 case UPMCommandType.MachineStatus:
                     {
-                        switch (cmd.Status)
+                        if (cmd.Status == 0)
                         {
-                            case 0:
-                                {
-                                    UPMAction.SetPLLUP(cmd.PL, cmd.LUP);
-                                    UPMAction.Z_SET_MACHINE_LINE("PL" + cmd.PL.ToString("D2"), "LUP" + cmd.LUP.ToString());
-                                    UPMAction.Z_SET_MACHINE_STOP_FLAG(cmd.PL, true);
-                                }
-                                break;
-                            case 1:
-                                {
-                                    UPMAction.SetPLLUP(cmd.PL, cmd.LUP);
-                                    UPMAction.Z_SET_MACHINE_LINE("PL" + cmd.PL.ToString("D2"), "LUP" + cmd.LUP.ToString());
-                                    UPMAction.Z_SET_MACHINE_STOP_FLAG(cmd.PL, false);
-                                }
-                                break;
-                            case 2:
-                                {
-                                    UPMAction.SetPLLUP(cmd.PL, 3);
-                                    UPMAction.Z_SET_MACHINE_LINE("PL" + cmd.PL.ToString("D2"), "LUP3");
-                                    UPMAction.Z_SET_MACHINE_STOP_FLAG(cmd.PL, false);
-                                }
-                                break;
+                            UPMAction.SetPLLUP(cmd.PL, cmd.LUP);
+                            UPMAction.Z_SET_MACHINE_LINE("PL" + cmd.PL.ToString("D2"), "LUP" + cmd.LUP.ToString());
+                            UPMAction.Z_SET_MACHINE_STOP_FLAG(cmd.PL, true);
+                        }
+                        else
+                        {
+                            if (cmd.Status == 1)
+                            {
+                                UPMAction.SetPLLUP(cmd.PL, cmd.LUP);
+                                UPMAction.Z_SET_MACHINE_LINE("PL" + cmd.PL.ToString("D2"), "LUP" + cmd.LUP.ToString());
+                                UPMAction.Z_SET_MACHINE_STOP_FLAG(cmd.PL, false);
+
+                            }
+                            else
+                            {
+                                var lup = cmd.Status + 1;
+                                UPMAction.SetPLLUP(cmd.PL, lup);
+                                UPMAction.Z_SET_MACHINE_LINE("PL" + cmd.PL.ToString("D2"), $"LUP{lup}");
+                                UPMAction.Z_SET_MACHINE_STOP_FLAG(cmd.PL, false);
+
+                            }
                         }
                         try
                         {
@@ -1595,46 +1663,50 @@ namespace LUPLoader
                             {
                                 if (UPMAction.LoadBags(cmd.LUP, cmd.BagQuant, LastBag, out LastBag))
                                 {
-                                    UPMAction.SetLastBag(cmd.Material, LastBag.LastBag,LastBag.LastTransferOrder);
+                                    UPMAction.SetLastBag(cmd.Material, LastBag.LastBag, LastBag.LastTransferOrder);
                                 }
                                 else
                                 {
 
                                     return false;
                                 }
-                            }else 
+                            }
+                            else
                                 return true;
                         }
                         catch (Exception ex)
                         {
                             string addMsg = "";
-                            UPMExceptionMessage uem=UPMExceptionMessage.SAPSQLError;
+                            UPMExceptionMessage uem = UPMExceptionMessage.SAPSQLError;
                             if (ex is LoadBagException)
                             {
-                                var lbex=(LoadBagException)ex;
+                                var lbex = (LoadBagException)ex;
                                 cmd.BagQuant -= lbex.Loaded;
                                 addMsg = "Загружено мешков: " + lbex.Loaded.ToString();
-                                try{
-                                UPMAction.SetLastBag(cmd.Material, lbex.LastBag,lbex.LastTransferOrder);
-                                }catch(Exception ex1){
+                                try
+                                {
+                                    UPMAction.SetLastBag(cmd.Material, lbex.LastBag, lbex.LastTransferOrder);
+                                }
+                                catch (Exception ex1)
+                                {
                                     addMsg = "\nSQLError: " + ex1.Message;
                                 }
 
                             }
                             if (ex is UPMException)
                             {
-                                uem=(ex as UPMException).UPMMessage;
+                                uem = (ex as UPMException).UPMMessage;
                             }
-                            throw new UPMException(ex.Message+"\n "+addMsg,uem);
+                            throw new UPMException(ex.Message + "\n " + addMsg, uem);
                         }
                     }
                     break;
                 case UPMCommandType.UPMIncome:
                     {
                         // список мешков привезенных на UPM в течение смены
-                        var HU_lst=HU_At_UPM(cmd.ShiftDate, cmd.IsNightShift);
+                        var HU_lst = HU_At_UPM(cmd.ShiftDate, cmd.IsNightShift);
                         // группировка мешков по материалу и весу мешка
-                        var HU_lst_group=HU_lst.OrderBy(l=>l.MaterialNumber).ThenBy(l1=>l1.Quantity).GroupBy(l => new { l.MaterialNumber, l.Quantity });
+                        var HU_lst_group = HU_lst.OrderBy(l => l.MaterialNumber).ThenBy(l1 => l1.Quantity).GroupBy(l => new { l.MaterialNumber, l.Quantity });
 
                         try
                         {
@@ -1689,7 +1761,8 @@ namespace LUPLoader
                                 var resp = cmd.ResponseOK();
                                 cmd.NetworkClient.Connection.GetStream().Write(resp, 0, resp.Length);
                                 Log.Add("Ответ клиенту " + cmd.NetworkClient.Connection.Client.RemoteEndPoint.ToString() + ": <" + Log.ByteArrayToHexString(resp) + "> - \"OK\"", true, 2);
-                            }else
+                            }
+                            else
                             {
                                 Log.Add("Нет подключения клиента", true, 2);
                             }
@@ -1701,7 +1774,7 @@ namespace LUPLoader
 
                         // Данные передаются в конце смены, если передана текущая смена, значит смена неправильная, и на самом деле это предыдущая смена
                         var cShift = new Shift(DateTime.Now);
-                        if (cShift.ShiftStart==cmd.ShiftDate && cShift.IsNightShift == cmd.IsNightShift)
+                        if (cShift.ShiftStart == cmd.ShiftDate && cShift.IsNightShift == cmd.IsNightShift)
                         {
                             if (cmd.IsNightShift)
                             {
@@ -1758,14 +1831,14 @@ namespace LUPLoader
             return true;
         }
 
-        public static void ResetMaterialsLastBag(DateTime? NewLast=null)
+        public static void ResetMaterialsLastBag(DateTime? NewLast = null)
         {
             DateTime now;
             if (!NewLast.HasValue)
                 now = DateTime.Now;
             else now = NewLast.Value;
             //now = new DateTime(2017, 08, 12, 9, 40, 57);
-            Log.Add("Установка времени последних загруженных мешков на " + now, true,0);
+            Log.Add("Установка времени последних загруженных мешков на " + now, true, 0);
             var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
             gran.ForEach(g => UPMAction.SetLastBag(g.Trim().TrimStart('0'), now, 9999999999));
         }
@@ -1777,16 +1850,16 @@ namespace LUPLoader
             else now = NewLast.Value;
             //now = new DateTime(2017, 08, 12, 9, 40, 57);
             var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
-            var mat=gran.Find(g => g.Trim().TrimStart('0') == Material);
+            var mat = gran.Find(g => g.Trim().TrimStart('0') == Material);
             if (mat != null)
             {
                 mat = mat.Trim().TrimStart('0');
-                Log.Add("Установка времени последних загруженных мешков для материала " + mat + " на " + now, true,0);
+                Log.Add("Установка времени последних загруженных мешков для материала " + mat + " на " + now, true, 0);
                 UPMAction.SetLastBag(mat, now, 9999999999);
             }
             else
             {
-                Log.Add("Материал "+Material+"не является гранулятом", true,0);
+                Log.Add("Материал " + Material + "не является гранулятом", true, 0);
             }
         }
 
@@ -1814,7 +1887,7 @@ namespace LUPLoader
                     LUPLastBag llb = new LUPLastBag();
                     llb.Material = dr.IsDBNull(0) ? "" : dr.GetString(0);
                     llb.LastBag = dr.IsDBNull(1) ? DateTime.MinValue : dr.GetDateTime(1); ;
-                    llb.LastTransferOrder= dr.IsDBNull(2) ? 9999999999L : dr.GetInt64(2);
+                    llb.LastTransferOrder = dr.IsDBNull(2) ? 9999999999L : dr.GetInt64(2);
                     lsd.Add(llb);
 
                 }
@@ -1842,7 +1915,7 @@ namespace LUPLoader
 
             return Got_HU_to_UPM;
         }
-        public static List<HU> HU_At_UPM(DateTime ShiftDate,bool isNight)
+        public static List<HU> HU_At_UPM(DateTime ShiftDate, bool isNight)
         {
             var fromdate = ShiftDate;
             var gran = SAPConnect.AppData.Instance.GetTable("MARA", (new string[] { "MATNR" }).ToList(), (new string[] { "MATKL = '100000000'" }).ToList());
@@ -1863,13 +1936,13 @@ namespace LUPLoader
             DateTime shiftEnds = ShiftDate.Date;
             if (isNight)
             {
-                shiftStarts=shiftStarts.AddHours(20);
-                shiftEnds=shiftEnds.AddHours(32);
+                shiftStarts = shiftStarts.AddHours(20);
+                shiftEnds = shiftEnds.AddHours(32);
             }
             else
             {
-                shiftStarts=shiftStarts.AddHours(8);
-                shiftEnds=shiftEnds.AddHours(20);
+                shiftStarts = shiftStarts.AddHours(8);
+                shiftEnds = shiftEnds.AddHours(20);
             }
             Got_HU_to_UPM = Got_HU_to_UPM.FindAll(h => h.DT >= shiftStarts && h.DT < shiftEnds);
             return Got_HU_to_UPM;
@@ -1887,8 +1960,8 @@ namespace LUPLoader
             var hus = HU_At_UPM(mintime);
 
             var new_hus = new List<HU>();
-            var HU_matgr = hus.OrderBy(HU=>HU.DT).GroupBy(h => h.MaterialNumber);
-            foreach(var hug in HU_matgr)
+            var HU_matgr = hus.OrderBy(HU => HU.DT).GroupBy(h => h.MaterialNumber);
+            foreach (var hug in HU_matgr)
             {
                 var material = hug.Key;
                 var mtnr = material.Trim().TrimStart('0');
@@ -1922,7 +1995,7 @@ namespace LUPLoader
                     //var hll = hl.FindAll(hh => hh.DT > lb.LastBag);
                     if (hl.Count > 0)
                     {
-                        ml.Add(new MaterialLeft() { Material = mtnr, Batch = "", Quant = hl.Sum(hle => hle.Quantity), BagCount=hl.Count,BaseWeight=qnt });
+                        ml.Add(new MaterialLeft() { Material = mtnr, Batch = "", Quant = hl.Sum(hle => hle.Quantity), BagCount = hl.Count, BaseWeight = qnt });
                     }
                 }
             }
@@ -1963,7 +2036,7 @@ namespace LUPLoader
             public DateTime LastBag;
             public long LastTransferOrder;
             public LUPLastBag() { }
-            public LUPLastBag(LUPLastBag ToClone) 
+            public LUPLastBag(LUPLastBag ToClone)
             {
                 Material = ToClone.Material;
                 LastBag = ToClone.LastBag;
@@ -1971,13 +2044,13 @@ namespace LUPLoader
             }
         }
 
-        public static void ChangeShift(DateTime ShiftDate,bool isNight, int[] LUPWeight)
+        public static void ChangeShift(DateTime ShiftDate, bool isNight, int[] LUPWeight)
         {
-            
+
             var bagsAtUPM = GetMaterials();
             var lupweight = LUPWeight;
-            
-            Report.AddLUPAtShiftStart(ShiftDate,isNight,LUPWeight[0],LUPWeight[1],0);
+
+            Report.AddLUPAtShiftStart(ShiftDate, isNight, LUPWeight[0], LUPWeight[1], 0);
             Report.AddMaterialAtShiftStart(ShiftDate, isNight, bagsAtUPM);
         }
 
@@ -1986,16 +2059,16 @@ namespace LUPLoader
     public static class Log
     {
         static object lockobject = new object();
-        public static List<string> CurrentMessages=new List<string>();
-        private static StreamWriter File=null;
+        public static List<string> CurrentMessages = new List<string>();
+        private static string CurrentFileName = null;
         private static DateTime CurrentDate = DateTime.MinValue;
-        public static DateTime LastLog=DateTime.MinValue;
+        public static DateTime LastLog = DateTime.MinValue;
         public static string LogPath;
         public static int LogLevel;
         static Log()
         {
             ChangeDate();
-            AppDomain.CurrentDomain.ProcessExit +=StopLog;
+            //AppDomain.CurrentDomain.ProcessExit +=StopLog;
         }
 
         private static void ChangeDate()
@@ -2007,12 +2080,10 @@ namespace LUPLoader
             }
             if (date != CurrentDate)
             {
-                if (File!=null)
-                    File.Close();
                 CurrentDate = date;
 
                 var path = Settings.GetOptionValue<string>(Constants.LogPath);
-                if(String.IsNullOrWhiteSpace(path))
+                if (String.IsNullOrWhiteSpace(path))
                 {
 
                     path = System.Reflection.Assembly.GetEntryAssembly().Location;
@@ -2020,15 +2091,15 @@ namespace LUPLoader
                 }
                 if (!path.EndsWith("\\")) path = path + "\\";
                 LogPath = path;
-                File = new StreamWriter(path + "log_" + CurrentDate.ToString("yyyyMMdd")+".log",true);
-                File.AutoFlush = true;
+                CurrentFileName = path + "log_" + CurrentDate.ToString("yyyyMMdd") + ".log";
                 CurrentMessages.Clear();
             }
             LogLevel = Settings.GetOptionValue<int>(Constants.LogLevel);
         }
 
-        public static void Add(string Message, bool ShowDateTime = true,int loglevel=0)
+        public static void Add(string Message, bool ShowDateTime = true, int loglevel = 0)
         {
+            if (String.IsNullOrWhiteSpace(CurrentFileName)) return;
             lock (lockobject)
             {
                 ChangeDate();
@@ -2040,15 +2111,19 @@ namespace LUPLoader
                     sb.Append(LastLog.ToString("dd-MM-yyyy HH\\:mm\\:ss    "));
                 }
                 sb.Append(Message);
-                var msg=sb.ToString();
-                File.WriteLine(msg);
-                File.Flush();
+                var msg = sb.ToString();
+                using (var file = new StreamWriter(CurrentFileName, true))
+                {
+                    file.WriteLine(msg);
+                    file.Flush();
+                }
                 CurrentMessages.Add(msg);
             }
         }
 
         public static void Add(Exception ex, int loglevel = 0)
         {
+            if (String.IsNullOrWhiteSpace(CurrentFileName)) return;
             lock (lockobject)
             {
                 ChangeDate();
@@ -2062,20 +2137,12 @@ namespace LUPLoader
                 /*File.Write(DateTime.Now.ToString("dd-MM-yyyy HH\\:mm\\:ss    "));
                 File.WriteLine(ex.Message);
                 File.WriteLine(ex.StackTrace);*/
-                File.Write(msg);
-                File.Flush();
+                using (var file = new StreamWriter(CurrentFileName, true))
+                {
+                    file.WriteLine(msg);
+                    file.Flush();
+                }
                 CurrentMessages.Add(msg);
-            }
-        }
-        static void StopLog(object sender, EventArgs e)
-        {
-            try
-            {
-                if (File != null) File.Close();
-            }
-            finally
-            {
-                File = null;
             }
         }
 
@@ -2083,25 +2150,67 @@ namespace LUPLoader
         {
             return String.Join(", ", data.Select(d => "0x" + d.ToString("X2")));
         }
-        /*~Log()
+
+        public static TextWriter CreateTextWriter()
         {
-            try
-            {
-                if (File != null) File.Close();
-            }
-            finally { }
-        }*/
-        /*public static void Dispose()
+            return new LogTextWriter();
+        }
+
+        protected class LogTextWriter : TextWriter
         {
-            try
+            public override Encoding Encoding => Encoding.UTF8;
+            private void WriteString(string value)
             {
-                if (File != null) File.Close();
+                Log.Add(value);
             }
-            finally
+            private void WriteObject(object value)
             {
-                File = null;
+                if (value is Exception)
+                {
+                    Log.Add(value as Exception);
+                }
+                else
+                {
+                    Log.Add(value.ToString());
+                }
             }
-        }*/
+
+            public override void Write(string format, params object[] arg) => WriteString(String.Format(format, arg));
+            public override void Write(string format, object arg0, object arg1, object arg2) => WriteString(String.Format(format, arg0, arg1, arg2));
+            public override void Write(string format, object arg0) => WriteString(String.Format(format, arg0));
+            public override void Write(object value) => WriteObject(value);
+            public override void Write(string value) => WriteString(value);
+            public override void Write(decimal value) => WriteObject(value);
+            public override void Write(double value) => WriteObject(value);
+            public override void Write(string format, object arg0, object arg1) => WriteString(String.Format(format, arg0, arg1));
+            public override void Write(ulong value) => WriteObject(value);
+            public override void Write(long value) => WriteObject(value);
+            public override void Write(uint value) => WriteObject(value);
+            public override void Write(int value) => WriteObject(value);
+            public override void Write(char value) => WriteObject(value);
+            public override void Write(bool value) => WriteObject(value);
+            public override void Write(char[] buffer, int index, int count) => WriteString(ByteArrayToHexString(buffer.Skip(index).Take(count).Cast<byte>().ToArray()));
+            public override void Write(char[] buffer) => WriteString(ByteArrayToHexString(buffer.Cast<byte>().ToArray()));
+            public override void Write(float value) => WriteObject(value);
+            public override void WriteLine(string value) => WriteString(value);
+            public override void WriteLine(object value) => WriteObject(value);
+            public override void WriteLine(string format, params object[] arg) => WriteString(String.Format(format, arg));
+            public override void WriteLine(string format, object arg0, object arg1) => WriteString(String.Format(format, arg0, arg1));
+            public override void WriteLine(string format, object arg0, object arg1, object arg2) => WriteString(String.Format(format, arg0, arg1, arg2));
+            public override void WriteLine(decimal value) => WriteObject(value);
+            public override void WriteLine(string format, object arg0) => WriteString(String.Format(format, arg0));
+            public override void WriteLine(double value) => WriteObject(value);
+            public override void WriteLine(uint value) => WriteObject(value);
+            public override void WriteLine(ulong value) => WriteObject(value);
+            public override void WriteLine(long value) => WriteObject(value);
+            public override void WriteLine(int value) => WriteObject(value);
+            public override void WriteLine(bool value) => WriteObject(value);
+            public override void WriteLine(char[] buffer, int index, int count) => WriteString(ByteArrayToHexString(buffer.Skip(index).Take(count).Cast<byte>().ToArray()));
+            public override void WriteLine(char[] buffer) => WriteString(ByteArrayToHexString(buffer.Cast<byte>().ToArray()));
+            public override void WriteLine(char value) => WriteObject(value);
+            public override void WriteLine(float value) => WriteObject(value);
+            public override void WriteLine() { }
+        }
     }
 
     public class UPMException : Exception
@@ -2129,7 +2238,7 @@ namespace LUPLoader
                     return @"Причина ошибки и действия персонала:
 • Ошибка в программе MaprDuo. Проверьте тип используемого гранулята и данные настроек гранулятов. ";
                 case UPMExceptionMessage.NoBags:
-                    return 
+                    return
 @"Причина ошибки и действия персонала:
 •  Гранулят не поступал на УПМ со склада в течении текущей смены. Проверьте в SAP наличие поставки гранулята со склада на УПМ.
    Проверьте фактическое количество гранулята на УПМ. Возможно в SAP не была сформирована из цеха заявка, а гранулят был завезен
@@ -2140,7 +2249,7 @@ namespace LUPLoader
    сообщите об ошибке системному администратору. В этом случае, ошибку может устранить только системный администратор.";
                 case UPMExceptionMessage.NoGranulate:
                 case UPMExceptionMessage.NoEnoughGranulate:
-                    return 
+                    return
 @"Причина ошибки и действия персонала:
 •  Фактически, мешки с гранулятом уже находятся на УПМ, а проводка со склада еще не сделана. Проверьте в SAP наличие поставки на
    гранулят со склада на УПМ. Проверьте в SAP наличие проводки гранулята со склада на УПМ.  В случае их отсутствия сообщите работнику
@@ -2163,13 +2272,13 @@ namespace LUPLoader
         SAPSQLError
     }
 
-    
+
     public class LoadBagException : Exception
     {
         public int Loaded;
         public DateTime LastBag;
         public long LastTransferOrder;
-        public LoadBagException(string message,int loaded,DateTime lastBag, long lastTransferOrder)
+        public LoadBagException(string message, int loaded, DateTime lastBag, long lastTransferOrder)
             : base(message)
         {
             Loaded = loaded;
@@ -2214,7 +2323,7 @@ namespace LUPLoader
                 Text = caption,
                 StartPosition = FormStartPosition.CenterScreen
             };
-            Label textLabel = new Label() { Left = 10, Top = 10, Text = text,Width=400 };
+            Label textLabel = new Label() { Left = 10, Top = 10, Text = text, Width = 400 };
             TextBox textBox = new TextBox() { Left = 10, Top = 25, Width = 400 };
             if (password) textBox.PasswordChar = '*';
             Button confirmation = new Button() { Text = "ОК", Left = 170, Width = 100, Top = 55, DialogResult = DialogResult.OK };

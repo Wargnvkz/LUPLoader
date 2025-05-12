@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GranulateReport", "..\Granu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SAPConnect", "..\prj\SAPConnect\SAPConnect\SAPConnect\SAPConnect.csproj", "{D162F735-6AA2-438C-AFA2-A2518C51D35E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UPMClasses", "..\prj\SAPFullSolution\UPMClasses\UPMClasses.csproj", "{529DDDFC-4FEA-4265-9D64-D4B27E36F286}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,14 @@ Global
 		{D162F735-6AA2-438C-AFA2-A2518C51D35E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D162F735-6AA2-438C-AFA2-A2518C51D35E}.Release|x86.ActiveCfg = Release|Any CPU
 		{D162F735-6AA2-438C-AFA2-A2518C51D35E}.Release|x86.Build.0 = Release|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Debug|x86.Build.0 = Debug|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Release|Any CPU.Build.0 = Release|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Release|x86.ActiveCfg = Release|Any CPU
+		{529DDDFC-4FEA-4265-9D64-D4B27E36F286}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

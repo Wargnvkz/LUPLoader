@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using System.Net;
 using System.Threading;
 using System.Configuration;
+using System.Reflection;
 
 namespace LUPLoader
 {
@@ -37,7 +38,8 @@ namespace LUPLoader
         public Form1()
         {
             InitializeComponent();
-            Log.Add("Программа запущена");
+            var version = Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? "";
+            Log.Add("Программа запущена. Версия: "+version);
             StartStopServer();
             /*PreviousStatuses=new List<MachineStatus>(){ new MachineStatus(){MachineNumber=1,Line=1, LineWork=true},
                                                         new MachineStatus(){MachineNumber=2,Line=1, LineWork=true},
@@ -368,7 +370,7 @@ namespace LUPLoader
                         byte a = (byte)(rnd.Next(2) + 1);
 
                         byte b = 1;// (byte)(rnd.Next(2) + 1);
-                        byte c = 12;// (byte)(rnd.Next(500));
+                        byte c = 93;// (byte)(rnd.Next(500));
                         var dt = new List<byte>() { 0xff, ID, 0x03, a };
                         dt.AddRange(Encoding.ASCII.GetBytes("1000000"+c.ToString("D3")));
                         dt.Add(b);

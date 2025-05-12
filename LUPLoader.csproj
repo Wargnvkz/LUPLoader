@@ -70,10 +70,6 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
-    <Reference Include="UPMClasses, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\UPMClasses\bin\Debug\UPMClasses.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BagList.cs">
@@ -182,6 +178,12 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="database_update.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\prj\SAPFullSolution\UPMClasses\UPMClasses.csproj">
+      <Project>{529dddfc-4fea-4265-9d64-d4b27e36f286}</Project>
+      <Name>UPMClasses</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
