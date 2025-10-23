@@ -510,7 +510,8 @@ namespace LUPLoader
         GranulateLoad,
         UPMIncome,
         EndShiftBagsCorrection,
-        EndShiftLUPCorrection
+        EndShiftLUPCorrection,
+        LUPWeightByLUPNumber
     }
 
     public enum UPMCorrectionType
@@ -1005,6 +1006,28 @@ namespace LUPLoader
 
                         }
                         break;
+                    case 7:
+                        {
+                            MsgLength = 6;
+                            if (data.Count >= StartI + MsgLength)
+                            {
+                                byte lWeight = data[StartI + 4];
+                                byte hWeight = data[StartI + 5];
+                                byte LUP = data[StartI + 3];
+                                int Weight = hWeight * 256 + lWeight;
+                                HasResult = true;
+                                command.Command = UPMCommandType.LUPWeightByLUPNumber;
+                                command.LUP = LUP;
+                                command.LUPWeight[0] = Weight;
+                                command.LUPWeight[1] = -1;
+                                command.MessageID = MsgID;
+                            }
+                            else
+                            {
+                                MsgLength = 0;
+                            }
+                        }
+                        break;
                 }
 
                 client.TakeData(StartI + MsgLength);
@@ -1027,7 +1050,7 @@ namespace LUPLoader
 
     public static class UPMAction
     {
-        public static int[] LUPWeight = new int[2];
+        public static int[] LUPWeights = new int[2];
 
         public static bool LoadBags(int LUP, int BagQuant, LUPLastBag LastBag, out LUPLastBag newLastBag)
         {
@@ -1092,7 +1115,7 @@ namespace LUPLoader
                     newLastBag = new LUPLastBag() { Material = Material, LastBag = l.DT, LastTransferOrder = l.TransferOrderNumber };
                     loadedBags++;
                     Log.Add("Мешок " + l.SU + " был загружен в LUP" + LUP.ToString(), true, 0);
-                    Log.Add("ТЗ мешка " + l.SU + ": Материал: "+ newLastBag.Material+", Время мешка: "+ newLastBag.LastBag.ToString("dd-MM-yyyy HH\\:mm\\:ss")+", номер ТЗ: "+newLastBag.LastTransferOrder, true, 0);
+                    Log.Add("ТЗ мешка " + l.SU + ": Материал: " + newLastBag.Material + ", Время мешка: " + newLastBag.LastBag.ToString("dd-MM-yyyy HH\\:mm\\:ss") + ", номер ТЗ: " + newLastBag.LastTransferOrder, true, 0);
                 }
                 return true;
             }
@@ -1211,7 +1234,7 @@ namespace LUPLoader
 
             var index = Got_HU_to_UPM.FindIndex(hu => hu.TransferOrderNumber == LastTransferOrder);
             if (index < 0) index = 0;
-            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index+1).ToList();
+            Got_HU_to_UPM = Got_HU_to_UPM.Skip(index + 1).ToList();
 
             return Got_HU_to_UPM;
         }
@@ -1527,8 +1550,35 @@ namespace LUPLoader
                     cmd.Parameters.AddWithValue("@LUP2", LUPWeight2);
                     cmd.ExecuteNonQuery();
                 }
-                LUPWeight[0] = LUPWeight1;
-                LUPWeight[1] = LUPWeight2;
+                LUPWeights[0] = LUPWeight1;
+                LUPWeights[1] = LUPWeight2;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+        public static void SetLUPWeightByLUPNumber(int LUPNumber, int LUPWeight)
+        {
+            var selectedLanguage = "ru-RU";
+            Thread.CurrentThread.CurrentCulture =
+                CultureInfo.CreateSpecificCulture(selectedLanguage);
+            Thread.CurrentThread.CurrentUICulture = new
+                CultureInfo(selectedLanguage);
+
+            try
+            {
+                var cs = ConfigurationManager.ConnectionStrings["UPMConnectionString"].ConnectionString;
+                using (SqlConnection connection = new SqlConnection(cs))
+                {
+                    connection.Open();
+                    SqlCommand cmd = new SqlCommand("SetLUPWeightByLUPNumber", connection);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    cmd.Parameters.AddWithValue("@LUPNumber", LUPNumber);
+                    cmd.Parameters.AddWithValue("@LUPWeight", LUPWeight);
+                    cmd.ExecuteNonQuery();
+                }
+                LUPWeights[LUPNumber] = LUPWeight;
             }
             catch (Exception ex)
             {
@@ -1825,6 +1875,28 @@ namespace LUPLoader
                             }
                         }
                         Report.MaprDuoLUPCorrections(cmd.ShiftDate, cmd.IsNightShift, cmd.Corrections);
+                    }
+                    break;
+                case UPMCommandType.LUPWeightByLUPNumber:
+                    {
+                        UPMAction.SetLUPWeightByLUPNumber(cmd.LUP, cmd.LUPWeight[0]);
+                        try
+                        {
+                            var resp = cmd.ResponseOK();
+                            if (cmd.NetworkClient != null)
+                            {
+                                cmd.NetworkClient.Connection.GetStream().Write(resp, 0, resp.Length);
+                                Log.Add("Ответ клиенту " + cmd.NetworkClient.Connection.Client.RemoteEndPoint.ToString() + ": <" + Log.ByteArrayToHexString(resp) + "> - \"OK\"", true, 2);
+                            }
+                            else
+                            {
+                                Log.Add("Нет подключения клиента", true, 2);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Add("Не удалось передать ответ клиенту");
+                        }
                     }
                     break;
             }

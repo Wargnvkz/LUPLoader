@@ -214,7 +214,7 @@ namespace LUPLoader
             if (sh.ShiftStart != shift.ShiftStart)
             {
                 shift = sh;
-                UPMAction.ChangeShift(shift.Date,shift.IsNightShift,UPMAction.LUPWeight);
+                UPMAction.ChangeShift(shift.Date,shift.IsNightShift,UPMAction.LUPWeights);
             }
 
 
