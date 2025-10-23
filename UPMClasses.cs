@@ -451,6 +451,8 @@ namespace LUPLoader
                         }
                         return sb.ToString();
                     }
+                case UPMCommandType.LUPWeightByLUPNumber:
+                    return String.Format("Вес в LUP{0}={1}, ID:{2}", LUP, LUPWeight[0], MessageID);
             }
             return "";
         }
