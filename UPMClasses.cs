@@ -1500,7 +1500,7 @@ namespace LUPLoader
             }
             catch (Exception ex)
             {
-                throw ex;
+                throw;
                 //return DateTime.MinValue;
             }
         }
@@ -1529,7 +1529,7 @@ namespace LUPLoader
             }
             catch (Exception ex)
             {
-                throw ex;
+                throw;
             }
         }
         public static void SetLUPWeight(int LUPWeight1, int LUPWeight2)
@@ -1557,7 +1557,7 @@ namespace LUPLoader
             }
             catch (Exception ex)
             {
-                throw ex;
+                throw;
             }
         }
         public static void SetLUPWeightByLUPNumber(int LUPNumber, int LUPWeight)
@@ -1580,11 +1580,12 @@ namespace LUPLoader
                     cmd.Parameters.AddWithValue("@LUPWeight", LUPWeight);
                     cmd.ExecuteNonQuery();
                 }
-                LUPWeights[LUPNumber] = LUPWeight;
+                if (LUPNumber < 3)
+                    LUPWeights[LUPNumber - 1] = LUPWeight;
             }
             catch (Exception ex)
             {
-                throw ex;
+                throw;
             }
         }
 
@@ -1611,7 +1612,7 @@ namespace LUPLoader
             }
             catch (Exception ex)
             {
-                throw ex;
+                throw;
             }
         }
 
