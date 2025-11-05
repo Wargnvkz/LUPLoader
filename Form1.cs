@@ -18,7 +18,7 @@ namespace LUPLoader
 
 
         bool ShowWarning = true;
-        
+
         public bool UPMStarted = false;
         //protected ControllerDeviceServer TCPServer;
         protected ControllerDeviceClient TCPClient;
@@ -33,13 +33,13 @@ namespace LUPLoader
 
         Logs logs;
 
-        bool IsDebugMode=false;
+        bool IsDebugMode = false;
 
         public Form1()
         {
             InitializeComponent();
             var version = Assembly.GetExecutingAssembly()?.GetName()?.Version?.ToString() ?? "";
-            Log.Add("Программа запущена. Версия: "+version);
+            Log.Add("Программа запущена. Версия: " + version);
             StartStopServer();
             /*PreviousStatuses=new List<MachineStatus>(){ new MachineStatus(){MachineNumber=1,Line=1, LineWork=true},
                                                         new MachineStatus(){MachineNumber=2,Line=1, LineWork=true},
@@ -61,7 +61,7 @@ namespace LUPLoader
             shift = new Shift(DateTime.Now);
         }
 
-        
+
 
         /*public List<MachineStatus> GetChangedStatuses(List<MachineStatus> CurrentStatuses, List<MachineStatus> PreviousStatuses)
         {
@@ -93,8 +93,8 @@ namespace LUPLoader
             var port = Settings.GetOptionValue<int>(Constants.TCPServerPortNumber);
             if (port > 0)
             {
-                TCPConnectionSettings tcs = new TCPConnectionSettings() { Address = IPAddress.Parse("127.0.0.1"), Port = port, Timeout = 1000 };
-                Log.Add("Параметры соединения: "+tcs.Address+":"+tcs.Port);
+                TCPConnectionSettings tcs = new TCPConnectionSettings() { Address = IPAddress.Parse("0.0.0.0"), Port = port, Timeout = 1000 };
+                Log.Add("Параметры соединения: " + tcs.Address + ":" + tcs.Port);
                 UPM = new UPMControl(tcs);
                 UPM.Start();
                 UPMStarted = true;
@@ -151,13 +151,13 @@ namespace LUPLoader
         }*/
 
         protected DateTime LastListOutput = DateTime.MinValue;
-        protected DateTime ShowWarningDisable=DateTime.MinValue;
+        protected DateTime ShowWarningDisable = DateTime.MinValue;
         public Warning FormWarning = null;
         //private bool ShiftChanged = false;
         private void timer1_Tick(object sender, EventArgs e)
         {
             if (UPM == null) return;
-            if (UPM.DelayedActionsLastChange > LastListOutput || (LastListOutput==DateTime.MinValue && UPM.DelayedActions.Count!=0))
+            if (UPM.DelayedActionsLastChange > LastListOutput || (LastListOutput == DateTime.MinValue && UPM.DelayedActions.Count != 0))
             {
                 var cmdlst = UPM.GetDelayedCommandsList();
                 FillListView(cmdlst);
@@ -171,7 +171,7 @@ namespace LUPLoader
                 {
                     var cmd = UPM.PeekNextDelayedCommands();
                     Log.Add("Пользователю выдано предупреждение. Команда: " + cmd.ToString());
-                    FormWarning = new Warning(cmd.ErrorMessage,UPMException.Helper(cmd.MessageType));
+                    FormWarning = new Warning(cmd.ErrorMessage, UPMException.Helper(cmd.MessageType));
                     timer1.Enabled = false;
                     var dialogresult = FormWarning.ShowDialog();
                     timer1.Enabled = true;
@@ -214,7 +214,7 @@ namespace LUPLoader
             if (sh.ShiftStart != shift.ShiftStart)
             {
                 shift = sh;
-                UPMAction.ChangeShift(shift.Date,shift.IsNightShift,UPMAction.LUPWeights);
+                UPMAction.ChangeShift(shift.Date, shift.IsNightShift, UPMAction.LUPWeights);
             }
 
 
@@ -228,10 +228,10 @@ namespace LUPLoader
         {
             Log.Add("Главное окно закрыто");
             StopUPM();
-            if (TCPClient!=null&&TCPClient.IsStarted) TCPClient.Close();
+            if (TCPClient != null && TCPClient.IsStarted) TCPClient.Close();
             Log.Add("Програма остановлена");
             Log.Add("-------------------------------------------------------------------");
-            Log.Add("",false);
+            Log.Add("", false);
         }
 
         private void SettingsMenu_Click(object sender, EventArgs e)
@@ -249,12 +249,12 @@ namespace LUPLoader
             sf.SAPLogin = Settings.GetOptionValue<string>(Constants.SAPLogin);
             sf.SAPPassword = Settings.GetOptionValue<string>(Constants.SAPPassword);
             sf.DelayedTimeout = Settings.GetOptionValue<int>(Constants.DelayedTimeout);
-            sf.LogLevel= Settings.GetOptionValue<int>(Constants.LogLevel);
+            sf.LogLevel = Settings.GetOptionValue<int>(Constants.LogLevel);
 
 
-            Log.Add("Значения настроек: "+sf.ToString());
+            Log.Add("Значения настроек: " + sf.ToString());
 
-            var res=sf.ShowDialog();
+            var res = sf.ShowDialog();
             if (res == System.Windows.Forms.DialogResult.OK)
             {
                 Settings.SetOptionValue(Constants.TCPServerPortNumber, sf.TCPServerPort.ToString());
@@ -330,11 +330,11 @@ namespace LUPLoader
 
         private void button2_Click(object sender, EventArgs e)
         {
-            if (TCPClient!=null)
-            if (TCPClient.IsStarted)
-            {
-                TCPClient.Close();
-            }
+            if (TCPClient != null)
+                if (TCPClient.IsStarted)
+                {
+                    TCPClient.Close();
+                }
 
         }
 
@@ -354,7 +354,7 @@ namespace LUPLoader
                         byte d1 = (byte)(a >> 8);
                         byte c2 = (byte)(b);
                         byte d2 = (byte)(b >> 8);
-                        TCPClient.Write(new List<byte>() { 0xff,ID, 0x01, c1, d1, c2, d2 });
+                        TCPClient.Write(new List<byte>() { 0xff, ID, 0x01, c1, d1, c2, d2 });
                         break;
                     }
                 case 1:
@@ -362,7 +362,7 @@ namespace LUPLoader
                         byte a = (byte)(rnd.Next(2) + 1);
                         byte b = (byte)(rnd.Next(12) + 1);
                         byte c = (byte)(rnd.Next(3));
-                        TCPClient.Write(new List<byte>() { 0xff,ID, 0x02, a, b, c });
+                        TCPClient.Write(new List<byte>() { 0xff, ID, 0x02, a, b, c });
                         break;
                     }
                 case 2:
@@ -372,7 +372,7 @@ namespace LUPLoader
                         byte b = 1;// (byte)(rnd.Next(2) + 1);
                         byte c = 93;// (byte)(rnd.Next(500));
                         var dt = new List<byte>() { 0xff, ID, 0x03, a };
-                        dt.AddRange(Encoding.ASCII.GetBytes("1000000"+c.ToString("D3")));
+                        dt.AddRange(Encoding.ASCII.GetBytes("1000000" + c.ToString("D3")));
                         dt.Add(b);
                         TCPClient.Write(dt);
                         break;
@@ -398,15 +398,15 @@ namespace LUPLoader
                         Shift s = new Shift(DateTime.Now);
                         var d = (byte)s.ShiftStart.Day;
                         var m = (byte)s.ShiftStart.Month;
-                        var y = (byte)(s.ShiftStart.Year%100);
-                        var n = s.IsNightShift?(byte)0x01:(byte)0x00;
+                        var y = (byte)(s.ShiftStart.Year % 100);
+                        var n = s.IsNightShift ? (byte)0x01 : (byte)0x00;
                         /*var dt = new List<byte>{0xFF,0x16,0x05,d,m,y,n,
                                                 0x31,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x31,0x34,  0x4C,0x04, 0x14,0x00, 0x0D,0x00, 0x07,0x00, 0x02,0x00,  0x05,  0xD2,0xE5,0xF1,0xF2,0x31,
                                                 0x31,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x31,0x34,  0x1A,0x04, 0x0A,0x00, 0x06,0x00, 0x04,0x00, 0xFE,0xFF,  0x05,  0xD2,0xE5,0xF1,0xF2,0x32,
                                                 0x31,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x32,0x30,  0x4C,0x04, 0x0C,0x00, 0x04,0x00, 0x08,0x00, 0x00,0x00,  0x00,
                                                 0x31,0x30,0x30,0x30,0x30,0x30,0x30,0x30,0x39,0x33,  0x4C,0x04, 0x08,0x00, 0x03,0x00, 0x05,0x00, 0x02,0x00,  0x00};*/
                         var dt = new List<byte>() { 0xFF, 0x21, 0x05, 0x13, 0x08, 0x14, 0x00, 0x31, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x30, 0x39, 0x33, 0x4C, 0x04, 0x4A, 0x00, 0x20, 0x00, 0x4F, 0x00, 0x03, 0x00, 0x03, 0xED, 0xED, 0xF1 };
-                        
+
                         TCPClient.Write(dt);
                         break;
                     }
@@ -459,7 +459,7 @@ namespace LUPLoader
                         Log.Add("Пользователь выбрал отменить команду \"" + cmd.ToString() + "\"");
                 }
             }
-            
+
         }
 
         private void OpenLogToolStripMenuItem_Click(object sender, EventArgs e)
@@ -498,7 +498,7 @@ namespace LUPLoader
             }
         }
 
-        public void DebugMode(bool start=false)
+        public void DebugMode(bool start = false)
         {
             if (start)
             {
@@ -533,13 +533,15 @@ namespace LUPLoader
         {
             var sdt = Prompt.ShowDialog("Введите время последнего мешка", "Введите дату и время", false);
             DateTime dt;
-            if (!DateTime.TryParse(sdt,out dt))
+            if (!DateTime.TryParse(sdt, out dt))
             {
                 MessageBox.Show("Неверный формат даты/времени");
-            }else{
+            }
+            else
+            {
                 UPMAction.ResetMaterialsLastBag(dt);
             }
-            
+
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
